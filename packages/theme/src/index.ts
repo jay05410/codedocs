@@ -4,3 +4,14 @@ export { Sidebar, type SidebarProps } from './components/Sidebar.js';
 export { ApiEndpointCard, type ApiEndpointCardProps } from './components/ApiEndpointCard.js';
 export { EntityCard, type EntityCardProps } from './components/EntityCard.js';
 export { MermaidChart, type MermaidChartProps } from './components/MermaidChart.js';
+export {
+  type ThemePreset,
+  presets,
+  getPreset,
+  generatePresetCss,
+  listPresets,
+  defaultPreset,
+  swaggerPreset,
+  redocPreset,
+  mintlifyPreset,
+} from './presets/index.js';

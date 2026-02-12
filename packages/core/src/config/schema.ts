@@ -67,7 +67,7 @@ const themeColorsSchema = z.object({
  * Zod schema for theme configuration
  */
 const themeConfigSchema = z.object({
-  preset: z.enum(['default', 'swagger', 'minimal']),
+  preset: z.enum(['default', 'swagger', 'redoc', 'mintlify', 'minimal']),
   colors: themeColorsSchema.optional(),
   components: z.record(z.string(), z.any()).optional(),
   css: z.string().optional(),
