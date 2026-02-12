@@ -1,44 +1,79 @@
 import React, { useState, useEffect } from 'react';
+import type { Memo, MemoDisplayItem } from '@codedocs/core';
+import { parseMemoStore } from '@codedocs/core';
+import sharedMemoStore from 'virtual:codedocs-memos';
 
 export interface MemoViewerProps {
   pageSlug: string;
   className?: string;
 }
 
-interface Memo {
-  id: string;
-  text: string;
-  createdAt: string;
+const STORAGE_PREFIX = 'codedocs-memos-';
+const AUTHOR_KEY = 'codedocs-memo-author';
+
+function getAuthor(): string {
+  try {
+    return localStorage.getItem(AUTHOR_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function loadPersonalMemos(pageSlug: string): Memo[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_PREFIX + pageSlug);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as Memo[]).map((m) => ({
+      ...m,
+      author: m.author || getAuthor() || 'Anonymous',
+      pageId: m.pageId || pageSlug,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function getSharedMemosForPage(pageSlug: string): Memo[] {
+  const store = parseMemoStore(sharedMemoStore);
+  return store.memos[pageSlug] ?? [];
+}
+
+function mergeForDisplay(pageSlug: string, personal: Memo[]): MemoDisplayItem[] {
+  const shared = getSharedMemosForPage(pageSlug);
+  const personalIds = new Set(personal.map((m) => m.id));
+
+  const items: MemoDisplayItem[] = [];
+
+  for (const m of shared) {
+    if (!personalIds.has(m.id)) {
+      items.push({ ...m, source: 'shared' });
+    }
+  }
+
+  for (const m of personal) {
+    items.push({ ...m, source: 'personal' });
+  }
+
+  items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  return items;
 }
 
 export function MemoViewer({ pageSlug, className = '' }: MemoViewerProps) {
-  const [memos, setMemos] = useState<Memo[]>([]);
-
-  const storageKey = `codedocs-memos-${pageSlug}`;
+  const [displayItems, setDisplayItems] = useState<MemoDisplayItem[]>([]);
 
   useEffect(() => {
-    loadMemos();
+    const personal = loadPersonalMemos(pageSlug);
+    setDisplayItems(mergeForDisplay(pageSlug, personal));
   }, [pageSlug]);
 
-  const loadMemos = () => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        setMemos(JSON.parse(stored));
-      } else {
-        setMemos([]);
-      }
-    } catch (error) {
-      console.error('Failed to load memos:', error);
-      setMemos([]);
-    }
-  };
-
   const handleClearAll = () => {
-    if (window.confirm('Are you sure you want to delete all memos for this page?')) {
+    if (window.confirm('Clear all personal memos for this page? Shared memos will remain.')) {
       try {
-        localStorage.removeItem(storageKey);
-        setMemos([]);
+        localStorage.removeItem(STORAGE_PREFIX + pageSlug);
+        // Re-merge: only shared remain
+        setDisplayItems(mergeForDisplay(pageSlug, []));
       } catch (error) {
         console.error('Failed to clear memos:', error);
       }
@@ -71,7 +106,7 @@ export function MemoViewer({ pageSlug, className = '' }: MemoViewerProps) {
     }
   };
 
-  if (memos.length === 0) {
+  if (displayItems.length === 0) {
     return (
       <div className={`codedocs-memo-viewer ${className}`}>
         <div className="codedocs-memo-viewer-empty">
@@ -95,20 +130,36 @@ export function MemoViewer({ pageSlug, className = '' }: MemoViewerProps) {
     );
   }
 
+  const hasPersonal = displayItems.some((m) => m.source === 'personal');
+
   return (
     <div className={`codedocs-memo-viewer ${className}`}>
       <div className="codedocs-memo-viewer-header">
-        <h3 className="codedocs-memo-viewer-title">Page Memos ({memos.length})</h3>
-        <button className="codedocs-memo-clear-btn" onClick={handleClearAll}>
-          Clear All
-        </button>
+        <h3 className="codedocs-memo-viewer-title">Page Memos ({displayItems.length})</h3>
+        {hasPersonal && (
+          <button className="codedocs-memo-clear-btn" onClick={handleClearAll}>
+            Clear Personal
+          </button>
+        )}
       </div>
 
       <div className="codedocs-memo-viewer-list">
-        {memos.map((memo) => (
+        {displayItems.map((memo) => (
           <div key={memo.id} className="codedocs-memo-viewer-item">
             <div className="codedocs-memo-viewer-time">
-              {getRelativeTime(memo.createdAt)}
+              <span className="codedocs-memo-item-meta">
+                <span className="codedocs-memo-author">{memo.author}</span>
+                <span
+                  className={`codedocs-memo-source-badge ${
+                    memo.source === 'shared'
+                      ? 'codedocs-memo-badge-shared'
+                      : 'codedocs-memo-badge-personal'
+                  }`}
+                >
+                  {memo.source === 'shared' ? 'Shared' : 'Personal'}
+                </span>
+                <span>{getRelativeTime(memo.createdAt)}</span>
+              </span>
             </div>
             <div className="codedocs-memo-viewer-text">{memo.text}</div>
           </div>

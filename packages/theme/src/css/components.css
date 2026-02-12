@@ -619,6 +619,69 @@ html.dark .shiki .dark {
   margin: 0;
 }
 
+/* ── Memo Source Badges ── */
+.codedocs-memo-source-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--codedocs-radius-sm);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.codedocs-memo-badge-shared {
+  background: var(--codedocs-primary);
+  color: white;
+}
+
+.codedocs-memo-badge-personal {
+  background: var(--codedocs-bg-tertiary);
+  color: var(--codedocs-text-secondary);
+  border: 1px solid var(--codedocs-border);
+}
+
+/* ── Memo Author ── */
+.codedocs-memo-author {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--codedocs-text-secondary);
+}
+
+/* ── Memo Export/Import Buttons ── */
+.codedocs-memo-actions {
+  display: flex;
+  gap: var(--codedocs-spacing-xs);
+  margin-bottom: var(--codedocs-spacing-md);
+}
+
+.codedocs-memo-action-btn {
+  flex: 1;
+  padding: var(--codedocs-spacing-xs) var(--codedocs-spacing-sm);
+  background: var(--codedocs-bg-secondary);
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-sm);
+  color: var(--codedocs-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.codedocs-memo-action-btn:hover {
+  background: var(--codedocs-bg-tertiary);
+  border-color: var(--codedocs-primary);
+  color: var(--codedocs-text);
+}
+
+/* ── Memo Item Metadata Row ── */
+.codedocs-memo-item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--codedocs-spacing-xs);
+  flex-wrap: wrap;
+}
+
 /* Dark mode support */
 html.dark .codedocs-memo-button {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);

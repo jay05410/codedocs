@@ -545,6 +545,10 @@ export function generateFrontmatter(page: GeneratedPage): string {
     lines.push(`sidebar_position: ${page.sidebarPosition}`);
   }
 
+  // Stable page identifier derived from file path (used by memo system)
+  const pageId = page.path.replace(/\.md$/, '');
+  lines.push(`page_id: "${pageId}"`);
+
   lines.push('---');
   lines.push('');
 

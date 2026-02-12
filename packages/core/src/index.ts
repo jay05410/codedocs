@@ -49,3 +49,5 @@ export { DiagramGenerator } from './diagram/index.js';
 export type { DiagramType, DiagramOptions, DiagramResult } from './diagram/index.js';
 export type { DomainGroup, GroupingResult, GroupingOptions } from './ai/grouping.js';
 export { groupByDomain, groupByHeuristic } from './ai/grouping.js';
+export type { Memo, MemoStore, MemoDisplayItem } from './memo/types.js';
+export { createEmptyMemoStore, parseMemoStore, mergeMemoStores } from './memo/index.js';
