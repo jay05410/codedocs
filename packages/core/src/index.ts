@@ -20,6 +20,8 @@ export { ParserEngine } from './parser/engine.js';
 export { FileReader } from './parser/file-reader.js';
 export type { AiProvider, AiProviderConfig } from './ai/types.js';
 export { createAiProvider } from './ai/providers/index.js';
+export { ExampleGenerator, formatExampleAsMarkdown } from './ai/example-generator.js';
+export type { GeneratedExample, RequestExample, ResponseExample, ExampleGeneratorOptions } from './ai/example-generator.js';
 export type {
   GeneratorConfig,
   SectionConfig,
