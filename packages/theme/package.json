@@ -24,6 +24,7 @@
     "react-router-dom": "^6.26.0"
   },
   "devDependencies": {
+    "@codedocs/core": "*",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "typescript": "^5.5.0",

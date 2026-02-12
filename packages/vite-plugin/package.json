@@ -28,6 +28,7 @@
     "shiki": "^1.22.0"
   },
   "devDependencies": {
+    "@codedocs/core": "*",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   },
