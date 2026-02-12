@@ -32,6 +32,17 @@
   "peerDependencies": {
     "@codedocs/core": "*"
   },
-  "files": ["dist", "src/css"],
-  "license": "MIT"
+  "files": [
+    "dist",
+    "src/css"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/codedocs.git",
+    "directory": "packages/theme"
+  }
 }

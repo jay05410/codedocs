@@ -24,6 +24,16 @@
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   },
-  "files": ["dist"],
-  "license": "MIT"
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/codedocs.git",
+    "directory": "packages/parsers/react"
+  }
 }
