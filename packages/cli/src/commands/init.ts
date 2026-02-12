@@ -3,16 +3,19 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { resolve, join } from 'path';
+import { resolve, join, basename } from 'path';
+import { detectStack, formatDetectionResult } from '../detect.js';
+import type { DetectedStack, SuggestedParser } from '../detect.js';
 
 interface InitAnswers {
   projectName: string;
   sourcePath: string;
   language: string;
+  parsers: string[];
   aiProvider: 'openai' | 'claude' | 'gemini' | 'ollama' | 'none';
   aiModel?: string;
   apiKey?: string;
-  locale: 'ko' | 'en';
+  locale: 'ko' | 'en' | 'ja' | 'zh';
   deployTarget: 'github-pages' | 'gitlab-pages' | 'nginx' | 'local';
   generateCI: boolean;
 }
@@ -20,41 +23,91 @@ interface InitAnswers {
 export const initCommand = new Command('init')
   .description('Initialize a new CodeDocs project')
   .option('-y, --yes', 'Skip prompts and use defaults')
+  .option('-d, --detect', 'Auto-detect stack and skip prompts')
+  .option('-s, --source <path>', 'Target source directory to analyze')
   .action(async (options) => {
     console.log(chalk.bold.cyan('\n📚 CodeDocs Initialization\n'));
+
+    // Auto-detect stack
+    const targetDir = options.source ? resolve(options.source) : process.cwd();
+    const detectSpinner = ora('Detecting project stack...').start();
+    let detected: DetectedStack;
+
+    try {
+      detected = await detectStack(targetDir);
+      detectSpinner.succeed('Stack detection complete!');
+
+      console.log(chalk.dim('\n' + formatDetectionResult(detected) + '\n'));
+    } catch {
+      detectSpinner.warn('Stack detection failed, using defaults');
+      detected = { languages: [], frameworks: [], orms: [], buildTools: [], suggestedParsers: [], sourcePath: './src' };
+    }
+
     let answers: InitAnswers;
 
-    if (options.yes) {
-      answers = getDefaultAnswers();
+    if (options.yes || options.detect) {
+      answers = getDefaultAnswers(detected);
     } else {
+      // Build parser choices from detection
+      const parserChoices = detected.suggestedParsers.map((p) => ({
+        name: `${p.package} (auto-detected)`,
+        value: p.package,
+        checked: true,
+      }));
+
+      // Add undetected parsers as unchecked options
+      const allParsers = [
+        { pkg: '@codedocs/parser-kotlin-spring', label: 'Kotlin + Spring Boot' },
+        { pkg: '@codedocs/parser-java-spring', label: 'Java + Spring Boot' },
+        { pkg: '@codedocs/parser-typescript-nestjs', label: 'TypeScript + NestJS' },
+        { pkg: '@codedocs/parser-python-fastapi', label: 'Python + FastAPI' },
+        { pkg: '@codedocs/parser-openapi', label: 'OpenAPI / Swagger' },
+      ];
+      const detectedPkgs = new Set(detected.suggestedParsers.map((p) => p.package));
+      for (const parser of allParsers) {
+        if (!detectedPkgs.has(parser.pkg)) {
+          parserChoices.push({ name: parser.label, value: parser.pkg, checked: false });
+        }
+      }
+
+      const primaryLang = detected.languages[0]?.name || 'Auto-detect';
+
       answers = (await inquirer.prompt([
         {
           type: 'input',
           name: 'projectName',
           message: 'Project name:',
-          default: 'my-docs',
+          default: basename(targetDir) || 'my-docs',
           validate: (input: string) => input.length > 0 || 'Project name is required',
         },
         {
           type: 'input',
           name: 'sourcePath',
           message: 'Source code path:',
-          default: './src',
+          default: detected.sourcePath || './src',
         },
         {
           type: 'list',
           name: 'language',
-          message: 'Primary language/framework:',
+          message: `Primary language/framework: ${primaryLang !== 'Auto-detect' ? chalk.dim(`(detected: ${primaryLang})`) : ''}`,
           choices: [
             'TypeScript',
             'JavaScript',
-            'Python',
+            'Kotlin',
             'Java',
+            'Python',
             'Go',
             'Rust',
             'Auto-detect',
           ],
-          default: 'Auto-detect',
+          default: primaryLang,
+        },
+        {
+          type: 'checkbox',
+          name: 'parsers',
+          message: 'Select parsers to use:',
+          choices: parserChoices,
+          when: () => parserChoices.length > 0,
         },
         {
           type: 'list',
@@ -102,6 +155,8 @@ export const initCommand = new Command('init')
           choices: [
             { name: 'Korean (한국어)', value: 'ko' },
             { name: 'English', value: 'en' },
+            { name: 'Japanese (日本語)', value: 'ja' },
+            { name: 'Chinese (中文)', value: 'zh' },
           ],
           default: 'ko',
         },
@@ -125,6 +180,11 @@ export const initCommand = new Command('init')
           default: true,
         },
       ] as any)) as InitAnswers;
+
+      // If parsers weren't asked (no choices), use detected
+      if (!answers.parsers) {
+        answers.parsers = detected.suggestedParsers.map((p) => p.package);
+      }
     }
 
     const spinner = ora('Generating configuration...').start();
@@ -132,7 +192,7 @@ export const initCommand = new Command('init')
     try {
       // Generate config file
       const configPath = resolve(process.cwd(), 'codedocs.config.ts');
-      const configContent = generateConfigFile(answers);
+      const configContent = generateConfigFile(answers, detected);
       writeFileSync(configPath, configContent, 'utf-8');
 
       // Generate CI/CD if requested
@@ -178,11 +238,12 @@ export const initCommand = new Command('init')
     }
   });
 
-function getDefaultAnswers(): InitAnswers {
+function getDefaultAnswers(detected?: DetectedStack): InitAnswers {
   return {
-    projectName: 'my-docs',
-    sourcePath: './src',
-    language: 'Auto-detect',
+    projectName: basename(process.cwd()) || 'my-docs',
+    sourcePath: detected?.sourcePath || './src',
+    language: detected?.languages[0]?.name || 'Auto-detect',
+    parsers: detected?.suggestedParsers.map((p) => p.package) || [],
     aiProvider: 'openai',
     aiModel: 'gpt-4-turbo-preview',
     locale: 'ko',
@@ -191,58 +252,79 @@ function getDefaultAnswers(): InitAnswers {
   };
 }
 
-function generateConfigFile(answers: InitAnswers): string {
+function generateConfigFile(answers: InitAnswers, detected?: DetectedStack): string {
+  // Build parser imports and config
+  const selectedParsers = answers.parsers || [];
+  const parserMap = new Map<string, SuggestedParser>();
+  if (detected) {
+    for (const p of detected.suggestedParsers) {
+      parserMap.set(p.package, p);
+    }
+  }
+  // Add defaults for manually selected parsers
+  const parserDefaults: Record<string, SuggestedParser> = {
+    '@codedocs/parser-kotlin-spring': { package: '@codedocs/parser-kotlin-spring', importName: 'kotlinSpringParser', factoryFn: 'kotlinSpringParser', options: { detectFrameworks: true } },
+    '@codedocs/parser-java-spring': { package: '@codedocs/parser-java-spring', importName: 'javaSpringParser', factoryFn: 'javaSpringParser', options: { detectFrameworks: true } },
+    '@codedocs/parser-typescript-nestjs': { package: '@codedocs/parser-typescript-nestjs', importName: 'nestjsParser', factoryFn: 'nestjsParser', options: { detectOrm: true } },
+    '@codedocs/parser-python-fastapi': { package: '@codedocs/parser-python-fastapi', importName: 'fastApiParser', factoryFn: 'fastApiParser', options: { detectOrm: true, detectPydantic: true } },
+    '@codedocs/parser-openapi': { package: '@codedocs/parser-openapi', importName: 'openApiParser', factoryFn: 'openApiParser', options: { parseSchemas: true } },
+  };
+
+  const parserImports: string[] = [];
+  const parserConfigs: string[] = [];
+
+  for (const pkg of selectedParsers) {
+    const info = parserMap.get(pkg) || parserDefaults[pkg];
+    if (!info) continue;
+    parserImports.push(`import { ${info.importName} } from '${pkg}';`);
+    if (info.options && Object.keys(info.options).length > 0) {
+      const optsStr = Object.entries(info.options).map(([k, v]) => `${k}: ${v}`).join(', ');
+      parserConfigs.push(`    ${info.factoryFn}({ ${optsStr} }),`);
+    } else {
+      parserConfigs.push(`    ${info.factoryFn}(),`);
+    }
+  }
+
+  const importsBlock = [
+    `import { defineConfig } from '@codedocs/core';`,
+    ...parserImports,
+  ].join('\n');
+
+  const parsersBlock = parserConfigs.length > 0
+    ? `\n  // Parsers (auto-detected)\n  parsers: [\n${parserConfigs.join('\n')}\n  ],\n`
+    : '';
+
   const aiConfig =
     answers.aiProvider !== 'none'
-      ? `
-  ai: {
-    provider: '${answers.aiProvider}',
-    model: '${answers.aiModel}',
-    apiKey: process.env.${getEnvVarName(answers.aiProvider)}${answers.apiKey ? ` || '${answers.apiKey}'` : ''},
-  },`
+      ? `\n  // AI configuration\n  ai: {\n    provider: '${answers.aiProvider}',\n    model: '${answers.aiModel}',\n    apiKey: process.env.${getEnvVarName(answers.aiProvider)}${answers.apiKey ? ` || '${answers.apiKey}'` : ''},\n    features: {\n      domainGrouping: true,\n      flowDiagrams: true,\n      codeExplanation: true,\n      releaseNoteAnalysis: true,\n    },\n  },\n`
       : '';
 
-  return `import { defineConfig } from '@codedocs/core';
+  return `${importsBlock}
 
 export default defineConfig({
   // Project information
   name: '${answers.projectName}',
 
   // Source code paths
-  source: {
-    include: ['${answers.sourcePath}/**/*.{ts,tsx,js,jsx,py,java,go,rs}'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/__tests__/**'],
-  },
-${aiConfig}
-  // Parser configuration
-  parser: {
-    language: '${answers.language.toLowerCase()}',
-    extractComments: true,
-    extractTypes: true,
-    extractExamples: true,
-  },
-
-  // Generator configuration
-  generator: {
+  source: '${answers.sourcePath}',
+${parsersBlock}${aiConfig}
+  // Documentation configuration
+  docs: {
+    title: '${answers.projectName} Documentation',
     locale: '${answers.locale}',
-    outputDir: './docs',
-    templates: {
-      module: 'default',
-      class: 'default',
-      function: 'default',
-    },
+    sections: [
+      { id: 'overview', label: 'Overview', type: 'auto' },
+      { id: 'api', label: 'API', type: 'endpoints' },
+      { id: 'entities', label: 'Data Models', type: 'entities' },
+      { id: 'architecture', label: 'Architecture', type: 'architecture' },
+      { id: 'changelog', label: 'Changelog', type: 'changelog' },
+    ],
   },
 
   // Theme configuration
   theme: {
-    name: '${answers.projectName} Documentation',
-    locale: '${answers.locale}',
-    nav: [
-      { text: 'Home', link: '/' },
-      { text: 'API', link: '/api/' },
-      { text: 'Guide', link: '/guide/' },
-    ],
-    sidebar: 'auto',
+    preset: 'default',
+    colors: { primary: '#2e8555' },
   },
 
   // Build configuration
