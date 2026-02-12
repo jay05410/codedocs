@@ -5,6 +5,8 @@ export { SearchBar, type SearchBarProps } from './components/SearchBar.js';
 export { ApiEndpointCard, type ApiEndpointCardProps } from './components/ApiEndpointCard.js';
 export { EntityCard, type EntityCardProps } from './components/EntityCard.js';
 export { MermaidChart, type MermaidChartProps } from './components/MermaidChart.js';
+export { MemoButton, type MemoButtonProps } from './components/MemoButton.js';
+export { MemoViewer, type MemoViewerProps } from './components/MemoViewer.js';
 export {
   ApiPlayground,
   type ApiPlaygroundProps,

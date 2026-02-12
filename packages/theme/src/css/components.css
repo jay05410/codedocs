@@ -322,3 +322,312 @@ html.dark .shiki .dark {
   background: var(--codedocs-bg-secondary);
   color: var(--codedocs-text);
 }
+
+/* ── Memo Button ── */
+.codedocs-memo-button {
+  position: fixed;
+  bottom: var(--codedocs-spacing-lg);
+  right: var(--codedocs-spacing-lg);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--codedocs-primary);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+  z-index: 100;
+}
+
+.codedocs-memo-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.codedocs-memo-button:active {
+  transform: scale(0.95);
+}
+
+.codedocs-memo-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border: 2px solid var(--codedocs-bg);
+}
+
+.codedocs-memo-panel {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 400px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: var(--codedocs-bg);
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-md) var(--codedocs-radius-md) 0 0;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.codedocs-memo-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--codedocs-spacing-md);
+  border-bottom: 1px solid var(--codedocs-border);
+  background: var(--codedocs-bg-secondary);
+}
+
+.codedocs-memo-panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.codedocs-memo-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--codedocs-text-secondary);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--codedocs-radius-sm);
+  transition: background 0.2s;
+}
+
+.codedocs-memo-close:hover {
+  background: var(--codedocs-bg-tertiary);
+  color: var(--codedocs-text);
+}
+
+.codedocs-memo-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--codedocs-spacing-md);
+}
+
+.codedocs-memo-editor {
+  margin-bottom: var(--codedocs-spacing-md);
+}
+
+.codedocs-memo-textarea {
+  width: 100%;
+  padding: var(--codedocs-spacing-sm);
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-sm);
+  background: var(--codedocs-bg);
+  color: var(--codedocs-text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  resize: vertical;
+  margin-bottom: var(--codedocs-spacing-sm);
+}
+
+.codedocs-memo-textarea:focus {
+  outline: none;
+  border-color: var(--codedocs-primary);
+}
+
+.codedocs-memo-save-btn {
+  width: 100%;
+  padding: var(--codedocs-spacing-sm) var(--codedocs-spacing-md);
+  background: var(--codedocs-primary);
+  color: white;
+  border: none;
+  border-radius: var(--codedocs-radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.codedocs-memo-save-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.codedocs-memo-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.codedocs-memo-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--codedocs-spacing-sm);
+}
+
+.codedocs-memo-item {
+  padding: var(--codedocs-spacing-sm);
+  background: var(--codedocs-bg-secondary);
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-sm);
+}
+
+.codedocs-memo-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--codedocs-spacing-xs);
+}
+
+.codedocs-memo-timestamp {
+  font-size: 0.75rem;
+  color: var(--codedocs-text-muted);
+}
+
+.codedocs-memo-delete-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--codedocs-text-secondary);
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--codedocs-radius-sm);
+  transition: background 0.2s, color 0.2s;
+}
+
+.codedocs-memo-delete-btn:hover {
+  background: var(--codedocs-bg-tertiary);
+  color: #ef4444;
+}
+
+.codedocs-memo-text {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Memo Viewer ── */
+.codedocs-memo-viewer {
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-md);
+  background: var(--codedocs-bg-secondary);
+  padding: var(--codedocs-spacing-md);
+  margin: var(--codedocs-spacing-md) 0;
+}
+
+.codedocs-memo-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--codedocs-spacing-md);
+  padding-bottom: var(--codedocs-spacing-sm);
+  border-bottom: 1px solid var(--codedocs-border);
+}
+
+.codedocs-memo-viewer-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.codedocs-memo-clear-btn {
+  padding: var(--codedocs-spacing-xs) var(--codedocs-spacing-sm);
+  background: transparent;
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-sm);
+  color: var(--codedocs-text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.codedocs-memo-clear-btn:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+.codedocs-memo-viewer-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--codedocs-spacing-sm);
+}
+
+.codedocs-memo-viewer-item {
+  padding: var(--codedocs-spacing-sm);
+  background: var(--codedocs-bg);
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-sm);
+}
+
+.codedocs-memo-viewer-time {
+  font-size: 0.75rem;
+  color: var(--codedocs-text-muted);
+  margin-bottom: var(--codedocs-spacing-xs);
+}
+
+.codedocs-memo-viewer-text {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.codedocs-memo-viewer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--codedocs-spacing-xl);
+  text-align: center;
+}
+
+.codedocs-memo-empty-icon {
+  color: var(--codedocs-text-muted);
+  margin-bottom: var(--codedocs-spacing-sm);
+}
+
+.codedocs-memo-empty-text {
+  color: var(--codedocs-text-muted);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Dark mode support */
+html.dark .codedocs-memo-button {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .codedocs-memo-button:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .codedocs-memo-panel {
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+}

@@ -238,12 +238,12 @@ codedocs/
 │   │   │   │   │   ├── ollama.ts
 │   │   │   │   │   └── custom.ts
 │   │   │   │   ├── grouping.ts        # AI 도메인 그룹핑
+│   │   │   │   ├── example-generator.ts # API 예제 생성
 │   │   │   │   └── prompts/           # 프롬프트 템플릿 (다국어)
 │   │   │   ├── generator/             # 문서 생성 엔진
 │   │   │   │   ├── types.ts
 │   │   │   │   ├── markdown.ts        # unified 기반 MD 생성
-│   │   │   │   ├── sidebar.ts         # 사이드바 자동 생성
-│   │   │   │   └── templates/         # MD 템플릿
+│   │   │   │   └── sidebar.ts         # 사이드바 자동 생성
 │   │   │   ├── changelog/             # 변경 추적
 │   │   │   │   ├── differ.ts
 │   │   │   │   └── release.ts
@@ -259,31 +259,27 @@ codedocs/
 │   │   │   │   ├── generate.ts        # codedocs generate
 │   │   │   │   ├── build.ts           # codedocs build (Vite SSG 빌드)
 │   │   │   │   ├── serve.ts           # codedocs serve (로컬 프리뷰)
-│   │   │   │   └── release.ts         # codedocs release
+│   │   │   │   └── dev.ts             # codedocs dev (watch + HMR)
 │   │   │   └── index.ts
 │   │   └── package.json
 │   │
 │   ├── theme/                         # @codedocs/theme — UI 테마
 │   │   ├── src/
-│   │   │   ├── app/                   # React SPA 엔트리
+│   │   │   ├── app/                   # React SSG 엔트리
 │   │   │   │   ├── App.tsx
-│   │   │   │   ├── Layout.tsx         # 사이드바 + 콘텐츠 레이아웃
-│   │   │   │   └── Router.tsx         # 클라이언트 라우팅
+│   │   │   │   └── Layout.tsx         # 사이드바 + 콘텐츠 레이아웃
 │   │   │   ├── components/
 │   │   │   │   ├── Sidebar.tsx
 │   │   │   │   ├── SearchBar.tsx      # Pagefind 연동
 │   │   │   │   ├── ApiEndpointCard.tsx
 │   │   │   │   ├── EntityCard.tsx
 │   │   │   │   ├── MermaidChart.tsx
-│   │   │   │   ├── MemoButton.tsx     # 기존 코드 마이그레이션
+│   │   │   │   ├── MemoButton.tsx     # 문서 메모 기능
 │   │   │   │   └── MemoViewer.tsx
-│   │   │   ├── css/
-│   │   │   │   ├── variables.css      # CSS 변수 (테마 커스텀)
-│   │   │   │   ├── base.css
-│   │   │   │   ├── components.css
-│   │   │   │   └── dark-mode.css
-│   │   │   └── pages/
-│   │   │       └── index.tsx          # 대시보드
+│   │   │   └── css/
+│   │   │       ├── variables.css      # CSS 변수 (테마 커스텀)
+│   │   │       ├── base.css
+│   │   │       └── components.css     # 다크모드 포함
 │   │   └── package.json
 │   │
 │   ├── vite-plugin/                   # @codedocs/vite-plugin — Vite SSG 플러그인
