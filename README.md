@@ -106,14 +106,17 @@ export default defineConfig({
 | `codedocs generate` | Generate markdown documentation from analysis |
 | `codedocs build` | Full pipeline: analyze + generate + Vite SSG build |
 | `codedocs serve` | Preview documentation locally |
+| `codedocs dev` | Watch mode with auto re-analyze and hot reload |
 
 ### Options
 
 ```bash
 codedocs init --detect          # Auto-detect and skip prompts
 codedocs init --yes             # Use all defaults
+codedocs init --ci              # CI-only generation (GitHub Actions, GitLab CI, Jenkins)
 codedocs analyze --verbose      # Show detailed analysis info
 codedocs build --skip-analyze   # Skip analysis step
+codedocs dev --port 3000        # Custom port for dev server
 ```
 
 ## Built-in Parsers
@@ -124,8 +127,11 @@ codedocs build --skip-analyze   # Skip analysis step
 | Java + Spring Boot | REST, JPA, Hibernate | `@codedocs/parser-java-spring` |
 | TypeScript + NestJS | REST, TypeORM, Prisma | `@codedocs/parser-typescript-nestjs` |
 | Python + FastAPI | REST, SQLAlchemy, Pydantic | `@codedocs/parser-python-fastapi` |
+| PHP + Laravel/Symfony | Laravel, Symfony, Slim, CodeIgniter, Eloquent, Doctrine | `@codedocs/parser-php` |
 | OpenAPI / Swagger | Any (spec import) | `@codedocs/parser-openapi` |
 | Go | Gin, Echo, Fiber, Chi, GORM | `@codedocs/parser-go` |
+| C | Structs, functions, enums, macros, microhttpd | `@codedocs/parser-c` |
+| C++ | Classes, templates, namespaces, Crow, Pistache, Qt | `@codedocs/parser-cpp` |
 | GraphQL SDL | Schema-first GraphQL | `@codedocs/parser-graphql` |
 | React / Next.js | Components, routes, hooks | `@codedocs/parser-react` |
 | Vue / Nuxt | Components, routes, composables | `@codedocs/parser-vue` |
@@ -168,7 +174,10 @@ export default defineConfig({
 - Mermaid diagrams (ER, sequence, flow, class, state, component, deployment)
 - Code explanation and business logic documentation
 - Request/response example generation
-- Semantic search (TF-IDF + embedding)
+- Pagefind search integration with full-text indexing
+- Shiki code highlighting with dual theme support (light/dark)
+- Incremental build caching for faster rebuilds
+- Watch mode with hot module replacement (HMR)
 
 ### Theme Presets
 
@@ -198,6 +207,8 @@ Documentation UI and generated content available in:
 - Chinese (`zh`)
 
 ## Deployment
+
+CodeDocs generates static sites that can be deployed anywhere. Use `codedocs init --ci` to auto-generate CI/CD configurations for GitHub Actions, GitLab CI, and Jenkins. See the comprehensive deployment guide at `docs/deploy-guide.md` for detailed instructions.
 
 ### GitHub Pages
 
@@ -256,12 +267,16 @@ codedocs/
 │       ├── java-spring/
 │       ├── typescript-nestjs/
 │       ├── python-fastapi/
+│       ├── php/
 │       ├── openapi/
 │       ├── go/
+│       ├── c/
+│       ├── cpp/
 │       ├── graphql/
 │       ├── react/
 │       ├── vue/
 │       └── svelte/
+├── docs/               # Documentation and guides
 ├── .github/workflows/  # CI/CD
 ├── turbo.json          # Turborepo config
 └── tsconfig.base.json  # Shared TypeScript config
