@@ -460,6 +460,38 @@ export default defineConfig({
 });
 ```
 
+### Phase 4: 프로덕션 준비 (Production Readiness)
+
+> **목표**: 빌드 검증 → 테스트 → CI/CD → npm 배포 가능 상태
+
+| # | 태스크 | 설명 | 상태 |
+|---|--------|------|------|
+| 29 | 빌드 검증 + 타입 에러 수정 | `turbo build` 전체 패키지 tsc 컴파일 통과 | |
+| 30 | Theme 다국어 연동 | Playground, VersionCompare 등 컴포넌트에 i18n 적용 | |
+| 31 | CLI 다국어 연동 | init 마법사, 에러 메시지 등 i18n 적용 | |
+| 32 | 단위 테스트: core | 파서 엔진, 설정 로더, 사이드바, 마크다운 생성기 | |
+| 33 | 단위 테스트: parsers | 각 파서별 샘플 코드 → ParseResult 검증 | |
+| 34 | 통합 테스트: CLI → build | `codedocs init` → `analyze` → `generate` → `build` E2E | |
+| 35 | GitHub Actions CI | PR 검증 (lint, typecheck, test), main merge 시 빌드 | |
+| 36 | README.md + Getting Started | 설치, Quick Start, 설정 가이드, 파서 목록 | |
+| 37 | 예제 프로젝트 | `examples/` 디렉토리에 Spring Boot, NestJS, FastAPI 샘플 | |
+| 38 | npm publish 설정 | changesets + 자동 버전 관리 + npm publish workflow | |
+
+### Phase 5: 사용자 경험 완성 (UX Polish)
+
+> **목표**: 코드 하이라이팅, 검색, 커스텀 페이지 등 최종 사용자 경험 완성
+
+| # | 태스크 | 설명 | 상태 |
+|---|--------|------|------|
+| 39 | Shiki 코드 하이라이팅 | 마크다운 코드 블록에 VS Code 급 문법 강조 | |
+| 40 | Pagefind 검색 연동 | 빌드 타임 인덱싱 + SearchBar 컴포넌트 연결 | |
+| 41 | 커스텀 페이지 지원 | `docs.sections`의 `custom` 타입으로 사용자 .md 페이지 통합 | |
+| 42 | Watch 모드 + HMR | `codedocs dev` — 소스 변경 감지 → 자동 재분석 + 핫리로드 | |
+| 43 | 증분 빌드 + 캐싱 | analysis-result.json 캐시, 변경된 파일만 재파싱 | |
+| 44 | 에러 핸들링 + 로깅 | 파서 에러 리포트, AI 타임아웃 처리, CLI 진행률 표시 | |
+| 45 | CI/CD 템플릿 생성기 | `codedocs init --ci` → GitHub Actions / GitLab CI / Jenkins 자동 생성 | |
+| 46 | 배포 가이드 | GitHub Pages, Netlify, Vercel, Nginx 배포 설정 가이드 | |
+
 ---
 
-**현재 상태**: Phase 1~3 구현 완료. 모든 핵심 기능 및 10개 파서 구현됨.
+**현재 상태**: Phase 1~3 구현 완료. Phase 4 (프로덕션 준비) 진행 중.
