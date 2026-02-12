@@ -16,6 +16,21 @@ export interface PageMeta {
   title?: string;
   description?: string;
   tags?: string[];
+  // SEO
+  canonical?: string;
+  robots?: string;       // e.g., 'noindex, nofollow'
+  // Open Graph
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  ogType?: string;       // 'article' | 'website'
+  // Twitter Card
+  twitterCard?: string;  // 'summary' | 'summary_large_image'
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  // Custom
+  custom?: Record<string, string>;
 }
 
 export interface GeneratedPage {

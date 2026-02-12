@@ -28,7 +28,7 @@ export type {
   GeneratorResult,
   SidebarItem,
 } from './generator/types.js';
-export { MarkdownGenerator } from './generator/markdown.js';
+export { MarkdownGenerator, generateFrontmatter, generateMetaTags } from './generator/markdown.js';
 export { SidebarGenerator } from './generator/sidebar.js';
 export type { ChangeEntry, ReleaseNote, AIProvider } from './changelog/index.js';
 export { compareAnalysisResults, generateReleaseNote, formatReleaseNote } from './changelog/index.js';
