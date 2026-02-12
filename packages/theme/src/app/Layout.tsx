@@ -1,10 +1,13 @@
 import React, { type ReactNode } from 'react';
 import { Sidebar } from '../components/Sidebar.js';
+import { I18nProvider, useI18n } from '../i18n/index.js';
+import type { Locale } from '@codedocs/core';
 
 export interface LayoutProps {
   children: ReactNode;
   sidebar?: SidebarSection[];
   title?: string;
+  locale?: Locale;
 }
 
 export interface SidebarSection {
@@ -18,7 +21,19 @@ export interface SidebarLink {
   active?: boolean;
 }
 
-export default function Layout({ children, sidebar = [], title = 'CodeDocs' }: LayoutProps) {
+export default function Layout({ children, sidebar = [], title = 'CodeDocs', locale = 'en' }: LayoutProps) {
+  return (
+    <I18nProvider locale={locale}>
+      <LayoutInner sidebar={sidebar} title={title}>
+        {children}
+      </LayoutInner>
+    </I18nProvider>
+  );
+}
+
+function LayoutInner({ children, sidebar = [], title = 'CodeDocs' }: Omit<LayoutProps, 'locale'>) {
+  const { strings } = useI18n();
+
   return (
     <div className="codedocs-layout">
       <header className="codedocs-header">
@@ -30,14 +45,14 @@ export default function Layout({ children, sidebar = [], title = 'CodeDocs' }: L
           <button
             className="codedocs-theme-toggle"
             onClick={() => document.documentElement.classList.toggle('dark')}
-            aria-label="Toggle dark mode"
+            aria-label={strings.theme.toggleDarkMode}
           >
             <span className="codedocs-theme-icon" />
           </button>
         </div>
       </header>
       <div className="codedocs-body">
-        {sidebar.length > 0 && <Sidebar sections={sidebar} />}
+        {sidebar && sidebar.length > 0 && <Sidebar sections={sidebar} />}
         <main className="codedocs-main">
           <article className="codedocs-content">
             {children}

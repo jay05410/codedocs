@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useI18n } from '../../i18n/index.js';
 import type {
   PlaygroundEndpoint,
   PlaygroundRequest,
@@ -20,6 +21,7 @@ const METHOD_COLORS: Record<string, string> = {
 };
 
 export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
+  const { strings } = useI18n();
   const [pathParams, setPathParams] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     endpoint.parameters
@@ -142,7 +144,7 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
           onClick={handleSend}
           disabled={loading}
         >
-          {loading ? 'Sending...' : 'Send'}
+          {loading ? strings.theme.sending : strings.theme.send}
         </button>
       </div>
 
@@ -156,7 +158,7 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
           className={`playground-tab ${activeTab === 'params' ? 'active' : ''}`}
           onClick={() => setActiveTab('params')}
         >
-          Parameters
+          {strings.theme.parameters}
           {(pathParamList.length + queryParamList.length) > 0 && (
             <span className="playground-tab-badge">
               {pathParamList.length + queryParamList.length}
@@ -167,14 +169,14 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
           className={`playground-tab ${activeTab === 'headers' ? 'active' : ''}`}
           onClick={() => setActiveTab('headers')}
         >
-          Headers
+          {strings.theme.headers}
         </button>
         {hasBody && (
           <button
             className={`playground-tab ${activeTab === 'body' ? 'active' : ''}`}
             onClick={() => setActiveTab('body')}
           >
-            Body
+            {strings.theme.body}
           </button>
         )}
         {endpoint.auth && (
@@ -182,7 +184,7 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
             className={`playground-tab ${activeTab === 'auth' ? 'active' : ''}`}
             onClick={() => setActiveTab('auth')}
           >
-            Auth
+            {strings.theme.auth}
           </button>
         )}
       </div>
@@ -193,7 +195,7 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
           <div className="playground-params">
             {pathParamList.length > 0 && (
               <>
-                <h4>Path Parameters</h4>
+                <h4>{strings.theme.pathParameters}</h4>
                 {pathParamList.map((p) => (
                   <ParamRow
                     key={p.name}
@@ -206,7 +208,7 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
             )}
             {queryParamList.length > 0 && (
               <>
-                <h4>Query Parameters</h4>
+                <h4>{strings.theme.queryParameters}</h4>
                 {queryParamList.map((p) => (
                   <ParamRow
                     key={p.name}
@@ -218,7 +220,7 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
               </>
             )}
             {pathParamList.length === 0 && queryParamList.length === 0 && (
-              <p className="playground-empty">No parameters for this endpoint.</p>
+              <p className="playground-empty">{strings.theme.noParameters}</p>
             )}
           </div>
         )}
@@ -228,7 +230,7 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
             <KeyValueEditor
               entries={headers}
               onChange={setHeaders}
-              placeholder={{ key: 'Header name', value: 'Header value' }}
+              placeholder={{ key: strings.theme.headerName, value: strings.theme.headerValue }}
             />
           </div>
         )}
@@ -245,14 +247,14 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
             />
             {endpoint.requestBody?.fields && endpoint.requestBody.fields.length > 0 && (
               <div className="playground-body-fields">
-                <h4>Fields</h4>
+                <h4>{strings.theme.fields}</h4>
                 <table>
                   <thead>
                     <tr>
-                      <th>Name</th>
-                      <th>Type</th>
-                      <th>Required</th>
-                      <th>Description</th>
+                      <th>{strings.theme.name}</th>
+                      <th>{strings.theme.type}</th>
+                      <th>{strings.theme.required}</th>
+                      <th>{strings.theme.description}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -274,9 +276,9 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
         {activeTab === 'auth' && endpoint.auth && (
           <div className="playground-auth">
             <label>
-              {endpoint.auth.type === 'bearer' ? 'Bearer Token' :
-               endpoint.auth.type === 'apiKey' ? 'API Key' :
-               endpoint.auth.type === 'basic' ? 'Basic Auth' : 'Token'}
+              {endpoint.auth.type === 'bearer' ? strings.theme.bearerToken :
+               endpoint.auth.type === 'apiKey' ? strings.theme.apiKey :
+               endpoint.auth.type === 'basic' ? strings.theme.basicAuth : strings.theme.token}
             </label>
             <input
               type="password"
@@ -293,7 +295,7 @@ export function ApiPlayground({ endpoint, config }: ApiPlaygroundProps) {
       {(response || error) && (
         <div className="playground-response">
           <div className="playground-response-header">
-            <h4>Response</h4>
+            <h4>{strings.theme.response}</h4>
             {response && (
               <div className="playground-response-meta">
                 <StatusBadge status={response.status} />
@@ -325,6 +327,8 @@ function ParamRow({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const { strings } = useI18n();
+
   return (
     <div className="playground-param-row">
       <label>
@@ -334,7 +338,7 @@ function ParamRow({
       </label>
       {param.enum ? (
         <select value={value} onChange={(e) => onChange(e.target.value)}>
-          <option value="">Select...</option>
+          <option value="">{strings.theme.select}</option>
           {param.enum.map((opt) => (
             <option key={opt} value={opt}>{opt}</option>
           ))}

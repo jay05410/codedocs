@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useI18n } from '../i18n/index.js';
 
 export interface ApiEndpointCardProps {
   method: string;
@@ -39,6 +40,7 @@ export function ApiEndpointCard({
   auth,
 }: ApiEndpointCardProps) {
   const [open, setOpen] = useState(false);
+  const { strings } = useI18n();
   const color = METHOD_COLORS[method] || '#999';
 
   return (
@@ -53,27 +55,27 @@ export function ApiEndpointCard({
           {method}
         </span>
         <span className="codedocs-api-path">{path}</span>
-        {auth && <span className="codedocs-api-auth" title="Authentication required">🔒</span>}
-        {deprecated && <span className="codedocs-api-deprecated">deprecated</span>}
+        {auth && <span className="codedocs-api-auth" title={strings.theme.authRequired}>🔒</span>}
+        {deprecated && <span className="codedocs-api-deprecated">{strings.theme.deprecated}</span>}
         <span className="codedocs-api-handler">{handler}</span>
       </button>
       {open && (
         <div className="codedocs-api-card-body">
           {description && <p className="codedocs-api-description">{description}</p>}
           <div className="codedocs-api-section">
-            <span className="codedocs-api-label">Returns</span>
+            <span className="codedocs-api-label">{strings.theme.returns}</span>
             <code className="codedocs-api-type">{returnType}</code>
           </div>
           {parameters.length > 0 && (
             <div className="codedocs-api-section">
-              <span className="codedocs-api-label">Parameters</span>
+              <span className="codedocs-api-label">{strings.theme.parameters}</span>
               <table className="codedocs-api-params">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Required</th>
-                    <th>Location</th>
+                    <th>{strings.theme.name}</th>
+                    <th>{strings.theme.type}</th>
+                    <th>{strings.theme.required}</th>
+                    <th>{strings.theme.location}</th>
                   </tr>
                 </thead>
                 <tbody>
