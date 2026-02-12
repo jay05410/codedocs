@@ -24,3 +24,10 @@ export {
   redocPreset,
   mintlifyPreset,
 } from './presets/index.js';
+export {
+  VersionCompare,
+  type VersionCompareProps,
+  type VersionComparisonData,
+  type DiffItem,
+  type BreakingChangeItem,
+} from './components/version-compare/index.js';
