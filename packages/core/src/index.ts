@@ -40,3 +40,5 @@ export type { PromptTemplate } from './ai/prompts/index.js';
 export { getPrompt, getPromptKeys, fillTemplate } from './ai/prompts/index.js';
 export { SemanticSearch } from './search/index.js';
 export type { SearchResult, SearchOptions, SearchIndex, SearchDocument, EmbeddingProvider } from './search/index.js';
+export { DiagramGenerator } from './diagram/index.js';
+export type { DiagramType, DiagramOptions, DiagramResult } from './diagram/index.js';
