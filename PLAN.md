@@ -303,9 +303,15 @@ codedocs/
 │       │   │   ├── entity-parser.ts
 │       │   │   └── service-parser.ts
 │       │   └── package.json
-│       ├── java-spring/               # (Phase 2)
-│       ├── typescript-nestjs/         # (Phase 2)
-│       └── python-fastapi/            # (Phase 2)
+│       ├── java-spring/               # @codedocs/parser-java-spring
+│       ├── typescript-nestjs/         # @codedocs/parser-typescript-nestjs
+│       ├── python-fastapi/            # @codedocs/parser-python-fastapi
+│       ├── openapi/                   # @codedocs/parser-openapi
+│       ├── go/                        # @codedocs/parser-go
+│       ├── graphql/                   # @codedocs/parser-graphql
+│       ├── react/                     # @codedocs/parser-react
+│       ├── vue/                       # @codedocs/parser-vue
+│       └── svelte/                    # @codedocs/parser-svelte
 │
 ├── templates/                         # CI/CD + 프로젝트 템플릿
 │   ├── ci/
@@ -329,65 +335,70 @@ codedocs/
 
 ## 5. 단계별 구현 계획
 
-### Phase 1: 코어 + MVP (Foundation)
+### Phase 1: 코어 + MVP (Foundation) ✅ 완료
 
 > **목표**: 모노레포 구조 세팅 → 핵심 엔진 구현 → `npx codedocs build`가 동작하는 MVP
 
-| # | 태스크 | 설명 | 우선순위 |
-|---|--------|------|----------|
-| 1 | monorepo 구조 세팅 | Turborepo + npm workspaces + tsconfig 통합 | P0 |
-| 2 | `@codedocs/core`: 설정 스키마 + 로더 | Zod 기반 `codedocs.config.ts` 파싱 | P0 |
-| 3 | `@codedocs/core`: 파서 엔진 | ParserPlugin 인터페이스 + 실행 엔진 + 파일 리더 | P0 |
-| 4 | `@codedocs/core`: AI 엔진 | ai-provider.ts 모듈화 + Ollama 추가 | P0 |
-| 5 | `@codedocs/parser-kotlin-spring` | analyze-imos.ts → 표준 파서 마이그레이션 | P0 |
-| 6 | `@codedocs/core`: Markdown 생성기 | unified 기반 MD 생성 + 템플릿 시스템 | P0 |
-| 7 | `@codedocs/core`: 사이드바 생성기 | 설정 + 분석 결과 → 사이드바 JSON | P0 |
-| 8 | `@codedocs/vite-plugin` | Vite SSG 플러그인 (MD→HTML, 라우팅, 빌드) | P0 |
-| 9 | `@codedocs/theme` | React 테마 (Layout, Sidebar, ApiCard 등) | P0 |
-| 10 | `@codedocs/cli` | init / analyze / generate / build / serve | P0 |
-| 11 | Changelog / Release | differ.ts + release.ts 리팩토링 | P1 |
-| 12 | CI/CD 템플릿 | Jenkins, GitHub Actions, GitLab CI | P1 |
+| # | 태스크 | 설명 | 상태 |
+|---|--------|------|------|
+| 1 | monorepo 구조 세팅 | Turborepo + npm workspaces + tsconfig 통합 | ✅ |
+| 2 | `@codedocs/core`: 설정 스키마 + 로더 | Zod 기반 `codedocs.config.ts` 파싱 | ✅ |
+| 3 | `@codedocs/core`: 파서 엔진 | ParserPlugin 인터페이스 + 실행 엔진 + 파일 리더 | ✅ |
+| 4 | `@codedocs/core`: AI 엔진 | ai-provider.ts 모듈화 + Ollama 추가 | ✅ |
+| 5 | `@codedocs/parser-kotlin-spring` | analyze-imos.ts → 표준 파서 마이그레이션 | ✅ |
+| 6 | `@codedocs/core`: Markdown 생성기 | unified 기반 MD 생성 + 템플릿 시스템 | ✅ |
+| 7 | `@codedocs/core`: 사이드바 생성기 | 설정 + 분석 결과 → 사이드바 JSON | ✅ |
+| 8 | `@codedocs/vite-plugin` | Vite SSG 플러그인 (MD→HTML, 라우팅, 빌드) | ✅ |
+| 9 | `@codedocs/theme` | React 테마 (Layout, Sidebar, ApiCard 등) | ✅ |
+| 10 | `@codedocs/cli` | init / analyze / generate / build / serve | ✅ |
+| 11 | Changelog / Release | differ.ts + release.ts 리팩토링 | ✅ |
+| 12 | CI/CD 템플릿 | Jenkins, GitHub Actions, GitLab CI | - |
 
-### Phase 2: 파서 확장 + 사용성
+### Phase 2: 파서 확장 + 사용성 ✅ 완료
 
-| # | 태스크 |
-|---|--------|
-| 13 | `@codedocs/parser-java-spring` |
-| 14 | `@codedocs/parser-typescript-nestjs` |
-| 15 | `@codedocs/parser-python-fastapi` |
-| 16 | `@codedocs/parser-openapi` |
-| 17 | AI 프롬프트 다국어 지원 |
-| 18 | `codedocs init` 자동 스택 감지 |
-| 19 | 페이지별 메타 태그 오버라이드 |
-| 20 | 테마 프리셋 추가 (Swagger, Redoc, Mintlify 스타일) |
+| # | 태스크 | 상태 |
+|---|--------|------|
+| 13 | `@codedocs/parser-java-spring` | ✅ |
+| 14 | `@codedocs/parser-typescript-nestjs` | ✅ |
+| 15 | `@codedocs/parser-python-fastapi` | ✅ |
+| 16 | `@codedocs/parser-openapi` | ✅ |
+| 17 | AI 프롬프트 다국어 지원 (ko/en/ja/zh) | ✅ |
+| 18 | `codedocs init` 자동 스택 감지 | ✅ |
+| 19 | 페이지별 메타 태그 오버라이드 | ✅ |
+| 20 | 테마 프리셋 추가 (default, swagger, redoc, mintlify) | ✅ |
 
-### Phase 3: 고도화
+### Phase 3: 고도화 ✅ 완료
 
-| # | 태스크 |
-|---|--------|
-| 21 | API Playground (Postman-like) |
-| 22 | Request/Response 예시 AI 자동 생성 |
-| 23 | `@codedocs/parser-go` |
-| 24 | `@codedocs/parser-graphql` |
-| 25 | `@codedocs/parser-react` / `parser-vue` / `parser-svelte` |
-| 26 | AI 시맨틱 검색 |
-| 27 | 다이어그램 자동 생성 강화 |
-| 28 | 버전 비교 뷰 |
+| # | 태스크 | 상태 |
+|---|--------|------|
+| 21 | API Playground (Postman-like) | ✅ |
+| 22 | Request/Response 예시 AI 자동 생성 | ✅ |
+| 23 | `@codedocs/parser-go` (Gin/Echo/Fiber/Chi + GORM) | ✅ |
+| 24 | `@codedocs/parser-graphql` (SDL 파싱) | ✅ |
+| 25 | `@codedocs/parser-react` / `parser-vue` / `parser-svelte` | ✅ |
+| 26 | AI 시맨틱 검색 (TF-IDF + Embedding) | ✅ |
+| 27 | 다이어그램 자동 생성 강화 (7종 Mermaid) | ✅ |
+| 28 | 버전 비교 뷰 (Breaking Change 감지) | ✅ |
 
 ---
 
 ## 6. npm 패키지 배포 구조
 
 ```
-@codedocs/core                        # 핵심 엔진
+@codedocs/core                        # 핵심 엔진 (파서, AI, 생성기, 검색, 다이어그램, 변경추적)
 @codedocs/cli                         # CLI (npx codedocs ...)
-@codedocs/theme                       # React 테마
+@codedocs/theme                       # React 테마 (Playground, VersionCompare, 프리셋)
 @codedocs/vite-plugin                 # Vite SSG 플러그인
 @codedocs/parser-kotlin-spring        # Kotlin+Spring 파서
 @codedocs/parser-java-spring          # Java+Spring 파서
 @codedocs/parser-typescript-nestjs    # NestJS 파서
 @codedocs/parser-python-fastapi       # FastAPI 파서
-@codedocs/parser-openapi              # OpenAPI 파서
+@codedocs/parser-openapi              # OpenAPI/Swagger 파서
+@codedocs/parser-go                   # Go+Gin/Echo/Fiber/Chi+GORM 파서
+@codedocs/parser-graphql              # GraphQL SDL 파서
+@codedocs/parser-react                # React+Next.js 파서
+@codedocs/parser-vue                  # Vue+Nuxt 파서
+@codedocs/parser-svelte               # Svelte+SvelteKit 파서
 codedocs                              # 메타 패키지 (core + cli + theme + vite-plugin)
 ```
 
@@ -451,4 +462,4 @@ export default defineConfig({
 
 ---
 
-**다음 단계**: Phase 1 구현 시작 — monorepo 구조 세팅부터.
+**현재 상태**: Phase 1~3 구현 완료. 모든 핵심 기능 및 10개 파서 구현됨.
