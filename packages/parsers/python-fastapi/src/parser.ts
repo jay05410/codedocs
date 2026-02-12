@@ -496,7 +496,7 @@ function parseServiceClass(file: SourceFile): ServiceInfo | null {
   if (!classMatch) return null;
 
   const name = classMatch[1];
-  const classBody = extractPythonClassBody(file.content, classMatch.index);
+  const classBody = extractPythonClassBody(file.content, classMatch.index ?? 0);
   if (!classBody) return null;
 
   const methods: string[] = [];

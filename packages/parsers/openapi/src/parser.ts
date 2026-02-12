@@ -200,7 +200,7 @@ function parseOperation(
 
   // Swagger 2.x body parameter
   if (version === 2 && operation.parameters) {
-    const bodyParam = operation.parameters.find((p) => (resolveRef(p, spec) as ParameterObject).in === 'body');
+    const bodyParam = operation.parameters.find((p) => ((resolveRef(p, spec) as ParameterObject).in as string) === 'body');
     if (bodyParam) {
       const resolved = resolveRef(bodyParam, spec) as ParameterObject & { schema?: SchemaObject };
       if (resolved.schema) {
