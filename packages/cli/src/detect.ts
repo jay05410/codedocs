@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join, resolve, extname } from 'path';
+import { getCliStrings, t } from './i18n.js';
 
 export interface DetectedStack {
   languages: StackLanguage[];
@@ -428,30 +429,31 @@ function inferSourcePath(dir: string): string {
  * Format detection results for display
  */
 export function formatDetectionResult(stack: DetectedStack): string {
+  const s = getCliStrings().cli;
   const lines: string[] = [];
 
   if (stack.languages.length > 0) {
-    lines.push('Languages:');
+    lines.push(s.languages);
     for (const lang of stack.languages.slice(0, 5)) {
       lines.push(`  ${lang.name}: ${lang.fileCount} files (${lang.percentage}%)`);
     }
   }
 
   if (stack.frameworks.length > 0) {
-    lines.push('Frameworks:');
+    lines.push(s.frameworks);
     for (const fw of stack.frameworks) {
       lines.push(`  ${fw.name} (${fw.confidence}) - ${fw.evidence}`);
     }
   }
 
   if (stack.suggestedParsers.length > 0) {
-    lines.push('Suggested parsers:');
+    lines.push(s.suggestedParsers);
     for (const parser of stack.suggestedParsers) {
       lines.push(`  ${parser.package}`);
     }
   }
 
-  lines.push(`Source path: ${stack.sourcePath}`);
+  lines.push(t(s.sourcePath, { path: stack.sourcePath }));
 
   return lines.join('\n');
 }

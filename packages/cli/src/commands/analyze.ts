@@ -6,6 +6,7 @@ import { resolve } from 'path';
 import { loadConfig } from '@codedocs/core';
 import { FileReader } from '@codedocs/core';
 import { ParserEngine } from '@codedocs/core';
+import { getCliStrings, t, initLocale } from '../i18n.js';
 
 export const analyzeCommand = new Command('analyze')
   .description('Analyze source code and extract documentation')
@@ -13,20 +14,24 @@ export const analyzeCommand = new Command('analyze')
   .option('-o, --output <path>', 'Output path for analysis results', './analysis-result.json')
   .option('--verbose', 'Show detailed analysis information')
   .action(async (options) => {
-    const spinner = ora('Loading configuration...').start();
+    const s = getCliStrings().cli;
+    const spinner = ora(s.loadingConfig).start();
 
     try {
       // Load configuration
       const configPath = resolve(process.cwd(), options.config);
       if (!existsSync(configPath)) {
-        spinner.fail('Configuration file not found');
-        console.error(chalk.red(`\nCould not find ${options.config}`));
-        console.log(chalk.dim('Run "codedocs init" to create a configuration file\n'));
+        spinner.fail(s.configNotFound);
+        console.error(chalk.red(`\n${options.config}`));
+        console.log(chalk.dim(s.runInitFirst + '\n'));
         process.exit(1);
       }
 
       const config = await loadConfig(configPath);
-      spinner.text = 'Reading source files...';
+      initLocale(config.docs?.locale);
+      const strings = getCliStrings().cli;
+
+      spinner.text = strings.readingFiles;
 
       // Read source files
       const fileReader = new FileReader();
@@ -35,13 +40,12 @@ export const analyzeCommand = new Command('analyze')
       const sourceFiles = await fileReader.readFiles(sourceDir, patterns);
 
       if (sourceFiles.length === 0) {
-        spinner.warn('No source files found');
-        console.log(chalk.yellow('\nNo files matched the configured patterns'));
-        console.log(chalk.dim('Check your source path in the config file\n'));
+        spinner.warn(strings.noFilesFound);
+        console.log(chalk.yellow('\n' + strings.checkSourcePath));
         process.exit(0);
       }
 
-      spinner.text = `Analyzing ${sourceFiles.length} files...`;
+      spinner.text = t(strings.analyzingFiles, { n: sourceFiles.length });
 
       // Create parser engine with proper type casting
       const parserEngine = new ParserEngine(config.parsers as any);
@@ -80,24 +84,24 @@ export const analyzeCommand = new Command('analyze')
 
       writeFileSync(outputPath, JSON.stringify(analysisData, null, 2), 'utf-8');
 
-      spinner.succeed('Analysis complete!');
+      spinner.succeed(strings.analysisComplete);
 
       // Print summary
-      console.log(chalk.green('\n✓ Analysis Summary:\n'));
-      console.log(chalk.dim(`  Files analyzed: ${successCount}/${sourceFiles.length}`));
+      console.log(chalk.green(`\n✓ ${strings.analysisSummary}\n`));
+      console.log(chalk.dim(`  ${t(strings.filesAnalyzed, { success: successCount, total: sourceFiles.length })}`));
       if (errorCount > 0) {
-        console.log(chalk.yellow(`  Errors: ${errorCount}`));
+        console.log(chalk.yellow(`  ${t(strings.errors, { n: errorCount })}`));
       }
-      console.log(chalk.dim(`  Total exports: ${analysisData.summary.totalExports}`));
-      console.log(chalk.dim(`  Total functions: ${analysisData.summary.totalFunctions}`));
-      console.log(chalk.dim(`  Total classes: ${analysisData.summary.totalClasses}`));
-      console.log(chalk.dim(`\n  Results saved to: ${options.output}\n`));
+      console.log(chalk.dim(`  ${t(strings.totalExports, { n: analysisData.summary.totalExports })}`));
+      console.log(chalk.dim(`  ${t(strings.totalFunctions, { n: analysisData.summary.totalFunctions })}`));
+      console.log(chalk.dim(`  ${t(strings.totalClasses, { n: analysisData.summary.totalClasses })}`));
+      console.log(chalk.dim(`\n  ${t(strings.resultsSaved, { path: options.output })}\n`));
 
       if (errorCount > 0) {
-        console.log(chalk.yellow('Run with --verbose to see detailed error messages\n'));
+        console.log(chalk.yellow(strings.runVerbose + '\n'));
       }
     } catch (error) {
-      spinner.fail('Analysis failed');
+      spinner.fail(getCliStrings().cli.analysisFailed);
       console.error(chalk.red(`\n${(error as Error).message}\n`));
       if (options.verbose && error instanceof Error && error.stack) {
         console.error(chalk.dim(error.stack));

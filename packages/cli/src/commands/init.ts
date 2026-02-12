@@ -6,6 +6,7 @@ import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, join, basename } from 'path';
 import { detectStack, formatDetectionResult } from '../detect.js';
 import type { DetectedStack, SuggestedParser } from '../detect.js';
+import { getCliStrings, t, initLocale } from '../i18n.js';
 
 interface InitAnswers {
   projectName: string;
@@ -26,20 +27,21 @@ export const initCommand = new Command('init')
   .option('-d, --detect', 'Auto-detect stack and skip prompts')
   .option('-s, --source <path>', 'Target source directory to analyze')
   .action(async (options) => {
-    console.log(chalk.bold.cyan('\n📚 CodeDocs Initialization\n'));
+    const s = getCliStrings().cli;
+    console.log(chalk.bold.cyan(`\n📚 ${s.initTitle}\n`));
 
     // Auto-detect stack
     const targetDir = options.source ? resolve(options.source) : process.cwd();
-    const detectSpinner = ora('Detecting project stack...').start();
+    const detectSpinner = ora(s.detectingStack).start();
     let detected: DetectedStack;
 
     try {
       detected = await detectStack(targetDir);
-      detectSpinner.succeed('Stack detection complete!');
+      detectSpinner.succeed(s.stackDetected);
 
       console.log(chalk.dim('\n' + formatDetectionResult(detected) + '\n'));
     } catch {
-      detectSpinner.warn('Stack detection failed, using defaults');
+      detectSpinner.warn(s.stackDetectFailed);
       detected = { languages: [], frameworks: [], orms: [], buildTools: [], suggestedParsers: [], sourcePath: './src' };
     }
 
@@ -76,20 +78,20 @@ export const initCommand = new Command('init')
         {
           type: 'input',
           name: 'projectName',
-          message: 'Project name:',
+          message: s.projectName,
           default: basename(targetDir) || 'my-docs',
-          validate: (input: string) => input.length > 0 || 'Project name is required',
+          validate: (input: string) => input.length > 0 || s.projectNameRequired,
         },
         {
           type: 'input',
           name: 'sourcePath',
-          message: 'Source code path:',
+          message: s.sourceCodePath,
           default: detected.sourcePath || './src',
         },
         {
           type: 'list',
           name: 'language',
-          message: `Primary language/framework: ${primaryLang !== 'Auto-detect' ? chalk.dim(`(detected: ${primaryLang})`) : ''}`,
+          message: `${s.primaryLanguage} ${primaryLang !== 'Auto-detect' ? chalk.dim(`(detected: ${primaryLang})`) : ''}`,
           choices: [
             'TypeScript',
             'JavaScript',
@@ -105,14 +107,14 @@ export const initCommand = new Command('init')
         {
           type: 'checkbox',
           name: 'parsers',
-          message: 'Select parsers to use:',
+          message: s.selectParsers,
           choices: parserChoices,
           when: () => parserChoices.length > 0,
         },
         {
           type: 'list',
           name: 'aiProvider',
-          message: 'AI provider for documentation generation:',
+          message: s.aiProvider,
           choices: [
             { name: 'OpenAI (GPT-4, GPT-3.5)', value: 'openai' },
             { name: 'Anthropic Claude', value: 'claude' },
@@ -125,7 +127,7 @@ export const initCommand = new Command('init')
         {
           type: 'input',
           name: 'aiModel',
-          message: 'AI model:',
+          message: s.aiModel,
           when: (ans: any) => ans.aiProvider !== 'none',
           default: (ans: any) => {
             switch (ans.aiProvider) {
@@ -145,13 +147,13 @@ export const initCommand = new Command('init')
         {
           type: 'password',
           name: 'apiKey',
-          message: 'API key (leave empty to set via environment variable):',
+          message: s.apiKeyPrompt,
           when: (ans: any) => ans.aiProvider !== 'none' && ans.aiProvider !== 'ollama',
         },
         {
           type: 'list',
           name: 'locale',
-          message: 'Documentation language:',
+          message: s.docLanguage,
           choices: [
             { name: 'Korean (한국어)', value: 'ko' },
             { name: 'English', value: 'en' },
@@ -163,7 +165,7 @@ export const initCommand = new Command('init')
         {
           type: 'list',
           name: 'deployTarget',
-          message: 'Deployment target:',
+          message: s.deployTarget,
           choices: [
             { name: 'GitHub Pages', value: 'github-pages' },
             { name: 'GitLab Pages', value: 'gitlab-pages' },
@@ -175,7 +177,7 @@ export const initCommand = new Command('init')
         {
           type: 'confirm',
           name: 'generateCI',
-          message: 'Generate CI/CD pipeline configuration?',
+          message: s.generateCI,
           when: (ans: any) => ans.deployTarget !== 'local',
           default: true,
         },
@@ -187,7 +189,11 @@ export const initCommand = new Command('init')
       }
     }
 
-    const spinner = ora('Generating configuration...').start();
+    // After getting locale from answers, re-init locale
+    initLocale(answers.locale);
+    const strings = getCliStrings().cli;
+
+    const spinner = ora(strings.generatingConfig).start();
 
     try {
       // Generate config file
@@ -206,11 +212,11 @@ export const initCommand = new Command('init')
         mkdirSync(outputDir, { recursive: true });
       }
 
-      spinner.succeed('Configuration created successfully!');
+      spinner.succeed(strings.configCreated);
 
-      console.log(chalk.green('\n✓ CodeDocs initialized successfully!\n'));
-      console.log(chalk.dim('Created files:'));
-      console.log(chalk.dim(`  - codedocs.config.ts`));
+      console.log(chalk.green(`\n✓ ${strings.initSuccess}\n`));
+      console.log(chalk.dim(strings.createdFiles));
+      console.log(chalk.dim('  - codedocs.config.ts'));
       if (answers.generateCI) {
         const ciFile =
           answers.deployTarget === 'github-pages'
@@ -219,20 +225,18 @@ export const initCommand = new Command('init')
         console.log(chalk.dim(`  - ${ciFile}`));
       }
 
-      console.log(chalk.cyan('\nNext steps:'));
+      console.log(chalk.cyan(`\n${strings.nextSteps}`));
       console.log(chalk.dim('  1. Review and edit codedocs.config.ts'));
       if (answers.aiProvider !== 'none' && !answers.apiKey) {
         console.log(
-          chalk.dim(
-            `  2. Set ${getEnvVarName(answers.aiProvider)} environment variable`
-          )
+          chalk.dim(`  2. ${t(strings.setEnvVar, { envVar: getEnvVarName(answers.aiProvider) })}`)
         );
       }
       console.log(chalk.dim('  3. Run: codedocs analyze'));
       console.log(chalk.dim('  4. Run: codedocs generate'));
-      console.log(chalk.dim('  5. Run: codedocs serve (to preview)\n'));
+      console.log(chalk.dim('  5. Run: codedocs serve\n'));
     } catch (error) {
-      spinner.fail('Failed to create configuration');
+      spinner.fail(strings.initFailed);
       console.error(chalk.red((error as Error).message));
       process.exit(1);
     }

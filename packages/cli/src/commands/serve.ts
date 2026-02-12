@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { loadConfig } from '@codedocs/core';
+import { getCliStrings, t, initLocale } from '../i18n.js';
 
 export const serveCommand = new Command('serve')
   .description('Start development server with hot reload')
@@ -15,17 +16,20 @@ export const serveCommand = new Command('serve')
   .option('--skip-generate', 'Skip generation step')
   .option('--open', 'Open browser automatically')
   .action(async (options) => {
-    console.log(chalk.bold.cyan('\n📡 Starting Development Server\n'));
+    const s = getCliStrings().cli;
+    console.log(chalk.bold.cyan(`\n📡 ${s.serverTitle}\n`));
 
     try {
       // Load config
       const configPath = resolve(process.cwd(), options.config);
       if (!existsSync(configPath)) {
-        console.error(chalk.red(`Configuration file not found: ${options.config}\n`));
+        console.error(chalk.red(`${s.configNotFound}: ${options.config}\n`));
         process.exit(1);
       }
 
       const config = await loadConfig(configPath);
+      initLocale(config.docs?.locale);
+      const strings = getCliStrings().cli;
 
       // Check if docs need to be generated
       const docsDir = './docs-output';
@@ -34,26 +38,26 @@ export const serveCommand = new Command('serve')
 
       // Step 1: Analyze if needed
       if (!options.skipAnalyze && needsGeneration) {
-        await runAnalyze(options.config);
+        await runAnalyze(options.config, strings);
       }
 
       // Step 2: Generate if needed
       if (!options.skipGenerate && needsGeneration) {
-        await runGenerate(options.config);
+        await runGenerate(options.config, strings);
       }
 
       // Step 3: Start Vite dev server
-      console.log(chalk.cyan('Starting Vite dev server...\n'));
-      await startViteServer(options);
+      console.log(chalk.cyan(strings.startingVite + '\n'));
+      await startViteServer(options, strings);
     } catch (error) {
-      console.error(chalk.red('\n✗ Server failed to start\n'));
+      console.error(chalk.red(`\n✗ ${getCliStrings().cli.serverFailed}\n`));
       console.error(chalk.red((error as Error).message));
       process.exit(1);
     }
   });
 
-async function runAnalyze(configPath: string): Promise<void> {
-  const spinner = ora('Analyzing source code...').start();
+async function runAnalyze(configPath: string, strings: any): Promise<void> {
+  const spinner = ora(strings.analyzingSource).start();
 
   return new Promise((resolve, reject) => {
     const cmd = spawn(
@@ -72,10 +76,10 @@ async function runAnalyze(configPath: string): Promise<void> {
 
     cmd.on('close', (code) => {
       if (code === 0) {
-        spinner.succeed('Analysis complete');
+        spinner.succeed(strings.analysisComplete);
         resolve();
       } else {
-        spinner.fail('Analysis failed');
+        spinner.fail(strings.analysisFailed);
         if (output) {
           console.error(chalk.red(output));
         }
@@ -84,14 +88,14 @@ async function runAnalyze(configPath: string): Promise<void> {
     });
 
     cmd.on('error', (error) => {
-      spinner.fail('Analysis failed');
+      spinner.fail(strings.analysisFailed);
       reject(error);
     });
   });
 }
 
-async function runGenerate(configPath: string): Promise<void> {
-  const spinner = ora('Generating documentation...').start();
+async function runGenerate(configPath: string, strings: any): Promise<void> {
+  const spinner = ora(strings.generatingDocumentation).start();
 
   return new Promise((resolve, reject) => {
     const cmd = spawn(
@@ -110,10 +114,10 @@ async function runGenerate(configPath: string): Promise<void> {
 
     cmd.on('close', (code) => {
       if (code === 0) {
-        spinner.succeed('Documentation generated');
+        spinner.succeed(strings.generationComplete);
         resolve();
       } else {
-        spinner.fail('Generation failed');
+        spinner.fail(strings.generationFailed);
         if (output) {
           console.error(chalk.red(output));
         }
@@ -122,13 +126,13 @@ async function runGenerate(configPath: string): Promise<void> {
     });
 
     cmd.on('error', (error) => {
-      spinner.fail('Generation failed');
+      spinner.fail(strings.generationFailed);
       reject(error);
     });
   });
 }
 
-async function startViteServer(options: any): Promise<void> {
+async function startViteServer(options: any, strings: any): Promise<void> {
   return new Promise((resolve, reject) => {
     const args = ['vite', 'dev'];
 
@@ -150,10 +154,10 @@ async function startViteServer(options: any): Promise<void> {
     });
 
     // Print server info
-    console.log(chalk.green('✓ Server started successfully!\n'));
-    console.log(chalk.cyan('Local server:'));
+    console.log(chalk.green(`✓ ${strings.serverStarted}\n`));
+    console.log(chalk.cyan(strings.localServer));
     console.log(chalk.dim(`  http://${options.host || 'localhost'}:${options.port || '3000'}\n`));
-    console.log(chalk.dim('Press Ctrl+C to stop the server\n'));
+    console.log(chalk.dim(strings.pressCtrlC + '\n'));
 
     cmd.on('error', (error) => {
       reject(error);
@@ -161,7 +165,7 @@ async function startViteServer(options: any): Promise<void> {
 
     // Handle Ctrl+C
     process.on('SIGINT', () => {
-      console.log(chalk.yellow('\n\nShutting down server...'));
+      console.log(chalk.yellow(`\n\n${strings.shuttingDown}`));
       cmd.kill('SIGINT');
       process.exit(0);
     });

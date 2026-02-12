@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { loadConfig } from '@codedocs/core';
+import { getCliStrings, t, initLocale } from '../i18n.js';
 
 export const buildCommand = new Command('build')
   .description('Build production-ready documentation site')
@@ -13,46 +14,48 @@ export const buildCommand = new Command('build')
   .option('--skip-generate', 'Skip generation step')
   .option('--verbose', 'Show detailed build output')
   .action(async (options) => {
-    console.log(chalk.bold.cyan('\n🏗️  Building Documentation\n'));
+    const s = getCliStrings().cli;
+    console.log(chalk.bold.cyan(`\n🏗️  ${s.buildTitle}\n`));
 
     try {
       // Load config
       const configPath = resolve(process.cwd(), options.config);
       if (!existsSync(configPath)) {
-        console.error(chalk.red(`Configuration file not found: ${options.config}\n`));
+        console.error(chalk.red(`${s.configNotFound}: ${options.config}\n`));
         process.exit(1);
       }
 
       const config = await loadConfig(configPath);
+      initLocale(config.docs?.locale);
+      const strings = getCliStrings().cli;
       const outDir = './dist';
 
       // Step 1: Analyze
       if (!options.skipAnalyze) {
         await runCommand('analyze', ['analyze', '-c', options.config], options.verbose);
       } else {
-        console.log(chalk.dim('⊘ Skipping analysis step\n'));
+        console.log(chalk.dim(`⊘ ${strings.skippingAnalysis}\n`));
       }
 
       // Step 2: Generate
       if (!options.skipGenerate) {
         await runCommand('generate', ['generate', '-c', options.config], options.verbose);
       } else {
-        console.log(chalk.dim('⊘ Skipping generation step\n'));
+        console.log(chalk.dim(`⊘ ${strings.skippingGeneration}\n`));
       }
 
       // Step 3: Build with Vite
-      console.log(chalk.cyan('Building static site...'));
+      console.log(chalk.cyan(strings.buildingSite));
       await runViteBuild(outDir, options.verbose);
 
       // Summary
-      console.log(chalk.green('\n✓ Build Complete!\n'));
-      console.log(chalk.dim(`  Output directory: ${outDir}`));
-      console.log(chalk.dim(`  Base URL: /`));
-      console.log(chalk.cyan('\nNext steps:'));
-      console.log(chalk.dim(`  - Deploy the ${outDir} directory to your hosting service`));
-      console.log(chalk.dim('  - Or preview locally with a static file server\n'));
+      console.log(chalk.green(`\n✓ ${strings.buildComplete}\n`));
+      console.log(chalk.dim(`  ${t(strings.outputDirectory, { dir: outDir })}`));
+      console.log(chalk.cyan(`\n${strings.nextSteps}`));
+      console.log(chalk.dim(`  - ${t(strings.deployHint, { dir: outDir })}`));
+      console.log(chalk.dim(`  - ${strings.previewLocalHint}\n`));
     } catch (error) {
-      console.error(chalk.red('\n✗ Build failed\n'));
+      console.error(chalk.red(`\n✗ ${getCliStrings().cli.buildFailed}\n`));
       console.error(chalk.red((error as Error).message));
       process.exit(1);
     }

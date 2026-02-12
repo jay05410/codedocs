@@ -5,6 +5,7 @@ import { readFileSync, existsSync, mkdirSync, writeFileSync, readdirSync, statSy
 import { resolve, join, dirname } from 'path';
 import { loadConfig } from '@codedocs/core';
 import { MarkdownGenerator } from '@codedocs/core';
+import { getCliStrings, t, initLocale } from '../i18n.js';
 
 export const generateCommand = new Command('generate')
   .description('Generate documentation from analysis results')
@@ -13,26 +14,29 @@ export const generateCommand = new Command('generate')
   .option('-o, --output <path>', 'Output directory for generated docs')
   .option('--verbose', 'Show detailed generation information')
   .action(async (options) => {
-    const spinner = ora('Loading configuration...').start();
+    const s = getCliStrings().cli;
+    const spinner = ora(s.loadingConfig).start();
 
     try {
       // Load configuration
       const configPath = resolve(process.cwd(), options.config);
       if (!existsSync(configPath)) {
-        spinner.fail('Configuration file not found');
-        console.error(chalk.red(`\nCould not find ${options.config}\n`));
+        spinner.fail(s.configNotFound);
+        console.error(chalk.red(`\n${options.config}\n`));
         process.exit(1);
       }
 
       const config = await loadConfig(configPath);
+      initLocale(config.docs?.locale);
+      const strings = getCliStrings().cli;
 
       // Load analysis results
-      spinner.text = 'Loading analysis results...';
+      spinner.text = strings.loadingAnalysis;
       const analysisPath = resolve(process.cwd(), options.input);
       if (!existsSync(analysisPath)) {
-        spinner.fail('Analysis results not found');
-        console.error(chalk.red(`\nCould not find ${options.input}`));
-        console.log(chalk.dim('Run "codedocs analyze" first\n'));
+        spinner.fail(strings.analysisNotFound);
+        console.error(chalk.red(`\n${options.input}`));
+        console.log(chalk.dim(strings.runAnalyzeFirst + '\n'));
         process.exit(1);
       }
 
@@ -40,8 +44,8 @@ export const generateCommand = new Command('generate')
       const analysisResults = analysisData.results || [];
 
       if (analysisResults.length === 0) {
-        spinner.warn('No analysis results to generate from');
-        console.log(chalk.yellow('\nNo results found in analysis file\n'));
+        spinner.warn(strings.noResults);
+        console.log(chalk.yellow('\n' + strings.noResultsInFile + '\n'));
         process.exit(0);
       }
 
@@ -49,7 +53,7 @@ export const generateCommand = new Command('generate')
       const outputDir = options.output || './docs-output';
       const outputPath = resolve(process.cwd(), outputDir);
 
-      spinner.text = 'Creating output directory...';
+      spinner.text = strings.creatingOutputDir;
       if (!existsSync(outputPath)) {
         mkdirSync(outputPath, { recursive: true });
       }
@@ -63,7 +67,7 @@ export const generateCommand = new Command('generate')
       };
 
       // Create markdown generator
-      spinner.text = 'Generating documentation...';
+      spinner.text = strings.generatingDocs;
       const generator = new MarkdownGenerator(generatorConfig);
 
       let generatedCount = 0;
@@ -99,7 +103,7 @@ export const generateCommand = new Command('generate')
       }
 
       // Generate index page
-      spinner.text = 'Generating index page...';
+      spinner.text = strings.generatingIndex;
       const indexContent = generateIndexPage(analysisData, generatedFiles);
       writeFileSync(join(outputPath, 'index.md'), indexContent, 'utf-8');
       generatedCount++;
@@ -116,26 +120,26 @@ export const generateCommand = new Command('generate')
         generatedCount++;
       }
 
-      spinner.succeed('Documentation generated!');
+      spinner.succeed(strings.generationComplete);
 
       // Print summary
-      console.log(chalk.green('\n✓ Generation Summary:\n'));
-      console.log(chalk.dim(`  Total pages generated: ${generatedCount}`));
-      console.log(chalk.dim(`  Output directory: ${outputDir}`));
-      console.log(chalk.dim(`  Index page: ${outputDir}/index.md`));
+      console.log(chalk.green(`\n✓ ${strings.generationSummary}\n`));
+      console.log(chalk.dim(`  ${t(strings.totalPages, { n: generatedCount })}`));
+      console.log(chalk.dim(`  ${t(strings.outputDirectory, { dir: outputDir })}`));
+      console.log(chalk.dim(`  ${t(strings.indexPage, { path: outputDir + '/index.md' })}`));
       if (apiFiles.length > 0) {
-        console.log(chalk.dim(`  API index: ${outputDir}/api/index.md`));
+        console.log(chalk.dim(`  ${t(strings.apiIndex, { path: outputDir + '/api/index.md' })}`));
       }
 
       // Calculate total size
       const totalSize = calculateDirectorySize(outputPath);
-      console.log(chalk.dim(`  Total size: ${formatBytes(totalSize)}\n`));
+      console.log(chalk.dim(`  ${t(strings.totalSize, { size: formatBytes(totalSize) })}\n`));
 
-      console.log(chalk.cyan('Next steps:'));
-      console.log(chalk.dim('  - Run "codedocs serve" to preview'));
-      console.log(chalk.dim('  - Run "codedocs build" to create production build\n'));
+      console.log(chalk.cyan(strings.nextSteps));
+      console.log(chalk.dim(`  - ${strings.previewHint}`));
+      console.log(chalk.dim(`  - ${strings.buildHint}\n`));
     } catch (error) {
-      spinner.fail('Generation failed');
+      spinner.fail(getCliStrings().cli.generationFailed);
       console.error(chalk.red(`\n${(error as Error).message}\n`));
       if (options.verbose && error instanceof Error && error.stack) {
         console.error(chalk.dim(error.stack));

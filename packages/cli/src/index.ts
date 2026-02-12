@@ -5,6 +5,10 @@ import { analyzeCommand } from './commands/analyze.js';
 import { generateCommand } from './commands/generate.js';
 import { buildCommand } from './commands/build.js';
 import { serveCommand } from './commands/serve.js';
+import { initLocale } from './i18n.js';
+
+// Initialize locale from env
+initLocale();
 
 const program = new Command();
 program

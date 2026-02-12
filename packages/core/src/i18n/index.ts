@@ -154,6 +154,102 @@ export interface I18nStrings {
     // Layout
     toggleDarkMode: string;
   };
+  // CLI strings
+  cli: {
+    // General
+    appDescription: string;
+    configNotFound: string;
+    runInitFirst: string;
+
+    // Init command
+    initTitle: string;
+    detectingStack: string;
+    stackDetected: string;
+    stackDetectFailed: string;
+    projectName: string;
+    projectNameRequired: string;
+    sourceCodePath: string;
+    primaryLanguage: string;
+    selectParsers: string;
+    aiProvider: string;
+    aiModel: string;
+    apiKeyPrompt: string;
+    docLanguage: string;
+    deployTarget: string;
+    generateCI: string;
+    generatingConfig: string;
+    configCreated: string;
+    initSuccess: string;
+    createdFiles: string;
+    nextSteps: string;
+    setEnvVar: string;
+    initFailed: string;
+
+    // Analyze command
+    loadingConfig: string;
+    readingFiles: string;
+    noFilesFound: string;
+    checkSourcePath: string;
+    analyzingFiles: string;
+    analysisComplete: string;
+    analysisSummary: string;
+    filesAnalyzed: string;
+    errors: string;
+    totalExports: string;
+    totalFunctions: string;
+    totalClasses: string;
+    resultsSaved: string;
+    runVerbose: string;
+    analysisFailed: string;
+
+    // Generate command
+    loadingAnalysis: string;
+    analysisNotFound: string;
+    runAnalyzeFirst: string;
+    noResults: string;
+    noResultsInFile: string;
+    creatingOutputDir: string;
+    generatingDocs: string;
+    generatingIndex: string;
+    generationComplete: string;
+    generationSummary: string;
+    totalPages: string;
+    outputDirectory: string;
+    indexPage: string;
+    apiIndex: string;
+    totalSize: string;
+    previewHint: string;
+    buildHint: string;
+    generationFailed: string;
+
+    // Build command
+    buildTitle: string;
+    skippingAnalysis: string;
+    skippingGeneration: string;
+    buildingSite: string;
+    buildingVite: string;
+    buildComplete: string;
+    deployHint: string;
+    previewLocalHint: string;
+    buildFailed: string;
+
+    // Serve command
+    serverTitle: string;
+    analyzingSource: string;
+    generatingDocumentation: string;
+    startingVite: string;
+    serverStarted: string;
+    localServer: string;
+    pressCtrlC: string;
+    serverFailed: string;
+    shuttingDown: string;
+
+    // Detect
+    languages: string;
+    frameworks: string;
+    suggestedParsers: string;
+    sourcePath: string;
+  };
 }
 
 const en: I18nStrings = {
@@ -294,6 +390,88 @@ const en: I18nStrings = {
     nModified: '~{n} modified',
     nBreaking: '{n} breaking',
     toggleDarkMode: 'Toggle dark mode',
+  },
+  cli: {
+    appDescription: 'AI-powered code documentation generator',
+    configNotFound: 'Configuration file not found',
+    runInitFirst: 'Run "codedocs init" to create a configuration file',
+    initTitle: 'CodeDocs Initialization',
+    detectingStack: 'Detecting project stack...',
+    stackDetected: 'Stack detection complete!',
+    stackDetectFailed: 'Stack detection failed, using defaults',
+    projectName: 'Project name:',
+    projectNameRequired: 'Project name is required',
+    sourceCodePath: 'Source code path:',
+    primaryLanguage: 'Primary language/framework:',
+    selectParsers: 'Select parsers to use:',
+    aiProvider: 'AI provider for documentation generation:',
+    aiModel: 'AI model:',
+    apiKeyPrompt: 'API key (leave empty to set via environment variable):',
+    docLanguage: 'Documentation language:',
+    deployTarget: 'Deployment target:',
+    generateCI: 'Generate CI/CD pipeline configuration?',
+    generatingConfig: 'Generating configuration...',
+    configCreated: 'Configuration created successfully!',
+    initSuccess: 'CodeDocs initialized successfully!',
+    createdFiles: 'Created files:',
+    nextSteps: 'Next steps:',
+    setEnvVar: 'Set {envVar} environment variable',
+    initFailed: 'Failed to create configuration',
+    loadingConfig: 'Loading configuration...',
+    readingFiles: 'Reading source files...',
+    noFilesFound: 'No source files found',
+    checkSourcePath: 'Check your source path in the config file',
+    analyzingFiles: 'Analyzing {n} files...',
+    analysisComplete: 'Analysis complete!',
+    analysisSummary: 'Analysis Summary:',
+    filesAnalyzed: 'Files analyzed: {success}/{total}',
+    errors: 'Errors: {n}',
+    totalExports: 'Total exports: {n}',
+    totalFunctions: 'Total functions: {n}',
+    totalClasses: 'Total classes: {n}',
+    resultsSaved: 'Results saved to: {path}',
+    runVerbose: 'Run with --verbose to see detailed error messages',
+    analysisFailed: 'Analysis failed',
+    loadingAnalysis: 'Loading analysis results...',
+    analysisNotFound: 'Analysis results not found',
+    runAnalyzeFirst: 'Run "codedocs analyze" first',
+    noResults: 'No analysis results to generate from',
+    noResultsInFile: 'No results found in analysis file',
+    creatingOutputDir: 'Creating output directory...',
+    generatingDocs: 'Generating documentation...',
+    generatingIndex: 'Generating index page...',
+    generationComplete: 'Documentation generated!',
+    generationSummary: 'Generation Summary:',
+    totalPages: 'Total pages generated: {n}',
+    outputDirectory: 'Output directory: {dir}',
+    indexPage: 'Index page: {path}',
+    apiIndex: 'API index: {path}',
+    totalSize: 'Total size: {size}',
+    previewHint: 'Run "codedocs serve" to preview',
+    buildHint: 'Run "codedocs build" to create production build',
+    generationFailed: 'Generation failed',
+    buildTitle: 'Building Documentation',
+    skippingAnalysis: 'Skipping analysis step',
+    skippingGeneration: 'Skipping generation step',
+    buildingSite: 'Building static site...',
+    buildingVite: 'Building with Vite...',
+    buildComplete: 'Build Complete!',
+    deployHint: 'Deploy the {dir} directory to your hosting service',
+    previewLocalHint: 'Or preview locally with a static file server',
+    buildFailed: 'Build failed',
+    serverTitle: 'Starting Development Server',
+    analyzingSource: 'Analyzing source code...',
+    generatingDocumentation: 'Generating documentation...',
+    startingVite: 'Starting Vite dev server...',
+    serverStarted: 'Server started successfully!',
+    localServer: 'Local server:',
+    pressCtrlC: 'Press Ctrl+C to stop the server',
+    serverFailed: 'Server failed to start',
+    shuttingDown: 'Shutting down server...',
+    languages: 'Languages:',
+    frameworks: 'Frameworks:',
+    suggestedParsers: 'Suggested parsers:',
+    sourcePath: 'Source path: {path}',
   },
 };
 
@@ -436,6 +614,88 @@ const ko: I18nStrings = {
     nBreaking: '{n} 호환성 깨짐',
     toggleDarkMode: '다크 모드 전환',
   },
+  cli: {
+    appDescription: 'AI 기반 코드 문서 생성기',
+    configNotFound: '설정 파일을 찾을 수 없습니다',
+    runInitFirst: '"codedocs init"을 실행하여 설정 파일을 생성하세요',
+    initTitle: 'CodeDocs 초기화',
+    detectingStack: '프로젝트 스택 감지 중...',
+    stackDetected: '스택 감지 완료!',
+    stackDetectFailed: '스택 감지 실패, 기본값 사용',
+    projectName: '프로젝트 이름:',
+    projectNameRequired: '프로젝트 이름은 필수입니다',
+    sourceCodePath: '소스 코드 경로:',
+    primaryLanguage: '주요 언어/프레임워크:',
+    selectParsers: '사용할 파서 선택:',
+    aiProvider: '문서 생성 AI 제공자:',
+    aiModel: 'AI 모델:',
+    apiKeyPrompt: 'API 키 (환경 변수로 설정하려면 비워두세요):',
+    docLanguage: '문서 언어:',
+    deployTarget: '배포 대상:',
+    generateCI: 'CI/CD 파이프라인 설정을 생성하시겠습니까?',
+    generatingConfig: '설정 생성 중...',
+    configCreated: '설정이 성공적으로 생성되었습니다!',
+    initSuccess: 'CodeDocs 초기화 완료!',
+    createdFiles: '생성된 파일:',
+    nextSteps: '다음 단계:',
+    setEnvVar: '{envVar} 환경 변수를 설정하세요',
+    initFailed: '설정 생성 실패',
+    loadingConfig: '설정 로드 중...',
+    readingFiles: '소스 파일 읽는 중...',
+    noFilesFound: '소스 파일을 찾을 수 없습니다',
+    checkSourcePath: '설정 파일의 소스 경로를 확인하세요',
+    analyzingFiles: '{n}개 파일 분석 중...',
+    analysisComplete: '분석 완료!',
+    analysisSummary: '분석 요약:',
+    filesAnalyzed: '분석된 파일: {success}/{total}',
+    errors: '오류: {n}',
+    totalExports: '총 내보내기: {n}',
+    totalFunctions: '총 함수: {n}',
+    totalClasses: '총 클래스: {n}',
+    resultsSaved: '결과 저장 위치: {path}',
+    runVerbose: '--verbose 옵션으로 자세한 오류 메시지를 확인하세요',
+    analysisFailed: '분석 실패',
+    loadingAnalysis: '분석 결과 로드 중...',
+    analysisNotFound: '분석 결과를 찾을 수 없습니다',
+    runAnalyzeFirst: '"codedocs analyze"를 먼저 실행하세요',
+    noResults: '생성할 분석 결과가 없습니다',
+    noResultsInFile: '분석 파일에 결과가 없습니다',
+    creatingOutputDir: '출력 디렉토리 생성 중...',
+    generatingDocs: '문서 생성 중...',
+    generatingIndex: '인덱스 페이지 생성 중...',
+    generationComplete: '문서 생성 완료!',
+    generationSummary: '생성 요약:',
+    totalPages: '총 생성 페이지: {n}',
+    outputDirectory: '출력 디렉토리: {dir}',
+    indexPage: '인덱스 페이지: {path}',
+    apiIndex: 'API 인덱스: {path}',
+    totalSize: '총 크기: {size}',
+    previewHint: '"codedocs serve"로 미리보기',
+    buildHint: '"codedocs build"로 프로덕션 빌드',
+    generationFailed: '생성 실패',
+    buildTitle: '문서 빌드',
+    skippingAnalysis: '분석 단계 건너뛰기',
+    skippingGeneration: '생성 단계 건너뛰기',
+    buildingSite: '정적 사이트 빌드 중...',
+    buildingVite: 'Vite로 빌드 중...',
+    buildComplete: '빌드 완료!',
+    deployHint: '{dir} 디렉토리를 호스팅 서비스에 배포하세요',
+    previewLocalHint: '또는 정적 파일 서버로 로컬 미리보기',
+    buildFailed: '빌드 실패',
+    serverTitle: '개발 서버 시작',
+    analyzingSource: '소스 코드 분석 중...',
+    generatingDocumentation: '문서 생성 중...',
+    startingVite: 'Vite 개발 서버 시작 중...',
+    serverStarted: '서버가 성공적으로 시작되었습니다!',
+    localServer: '로컬 서버:',
+    pressCtrlC: 'Ctrl+C로 서버 종료',
+    serverFailed: '서버 시작 실패',
+    shuttingDown: '서버 종료 중...',
+    languages: '언어:',
+    frameworks: '프레임워크:',
+    suggestedParsers: '추천 파서:',
+    sourcePath: '소스 경로: {path}',
+  },
 };
 
 const ja: I18nStrings = {
@@ -577,6 +837,88 @@ const ja: I18nStrings = {
     nBreaking: '{n}破壊的変更',
     toggleDarkMode: 'ダークモード切替',
   },
+  cli: {
+    appDescription: 'AI搭載コードドキュメントジェネレーター',
+    configNotFound: '設定ファイルが見つかりません',
+    runInitFirst: '"codedocs init"を実行して設定ファイルを作成してください',
+    initTitle: 'CodeDocs 初期化',
+    detectingStack: 'プロジェクトスタック検出中...',
+    stackDetected: 'スタック検出完了！',
+    stackDetectFailed: 'スタック検出失敗、デフォルトを使用',
+    projectName: 'プロジェクト名:',
+    projectNameRequired: 'プロジェクト名は必須です',
+    sourceCodePath: 'ソースコードパス:',
+    primaryLanguage: '主要言語/フレームワーク:',
+    selectParsers: '使用するパーサーを選択:',
+    aiProvider: 'ドキュメント生成AIプロバイダー:',
+    aiModel: 'AIモデル:',
+    apiKeyPrompt: 'APIキー (環境変数で設定する場合は空欄):',
+    docLanguage: 'ドキュメント言語:',
+    deployTarget: 'デプロイ先:',
+    generateCI: 'CI/CDパイプライン設定を生成しますか？',
+    generatingConfig: '設定を生成中...',
+    configCreated: '設定の作成に成功しました！',
+    initSuccess: 'CodeDocs初期化完了！',
+    createdFiles: '作成されたファイル:',
+    nextSteps: '次のステップ:',
+    setEnvVar: '{envVar}環境変数を設定してください',
+    initFailed: '設定の作成に失敗しました',
+    loadingConfig: '設定を読み込み中...',
+    readingFiles: 'ソースファイル読み込み中...',
+    noFilesFound: 'ソースファイルが見つかりません',
+    checkSourcePath: '設定ファイルのソースパスを確認してください',
+    analyzingFiles: '{n}ファイルを分析中...',
+    analysisComplete: '分析完了！',
+    analysisSummary: '分析サマリー:',
+    filesAnalyzed: '分析ファイル: {success}/{total}',
+    errors: 'エラー: {n}',
+    totalExports: '総エクスポート: {n}',
+    totalFunctions: '総関数: {n}',
+    totalClasses: '総クラス: {n}',
+    resultsSaved: '結果の保存先: {path}',
+    runVerbose: '--verboseで詳細なエラーメッセージを確認できます',
+    analysisFailed: '分析失敗',
+    loadingAnalysis: '分析結果を読み込み中...',
+    analysisNotFound: '分析結果が見つかりません',
+    runAnalyzeFirst: '先に"codedocs analyze"を実行してください',
+    noResults: '生成する分析結果がありません',
+    noResultsInFile: '分析ファイルに結果がありません',
+    creatingOutputDir: '出力ディレクトリを作成中...',
+    generatingDocs: 'ドキュメント生成中...',
+    generatingIndex: 'インデックスページ生成中...',
+    generationComplete: 'ドキュメント生成完了！',
+    generationSummary: '生成サマリー:',
+    totalPages: '総生成ページ: {n}',
+    outputDirectory: '出力ディレクトリ: {dir}',
+    indexPage: 'インデックスページ: {path}',
+    apiIndex: 'APIインデックス: {path}',
+    totalSize: '総サイズ: {size}',
+    previewHint: '"codedocs serve"でプレビュー',
+    buildHint: '"codedocs build"でプロダクションビルド',
+    generationFailed: '生成失敗',
+    buildTitle: 'ドキュメントビルド',
+    skippingAnalysis: '分析ステップをスキップ',
+    skippingGeneration: '生成ステップをスキップ',
+    buildingSite: '静的サイトをビルド中...',
+    buildingVite: 'Viteでビルド中...',
+    buildComplete: 'ビルド完了！',
+    deployHint: '{dir}ディレクトリをホスティングサービスにデプロイしてください',
+    previewLocalHint: 'または静的ファイルサーバーでローカルプレビュー',
+    buildFailed: 'ビルド失敗',
+    serverTitle: '開発サーバー起動',
+    analyzingSource: 'ソースコード分析中...',
+    generatingDocumentation: 'ドキュメント生成中...',
+    startingVite: 'Vite開発サーバー起動中...',
+    serverStarted: 'サーバーが正常に起動しました！',
+    localServer: 'ローカルサーバー:',
+    pressCtrlC: 'Ctrl+Cでサーバー停止',
+    serverFailed: 'サーバーの起動に失敗しました',
+    shuttingDown: 'サーバー終了中...',
+    languages: '言語:',
+    frameworks: 'フレームワーク:',
+    suggestedParsers: '推奨パーサー:',
+    sourcePath: 'ソースパス: {path}',
+  },
 };
 
 const zh: I18nStrings = {
@@ -717,6 +1059,88 @@ const zh: I18nStrings = {
     nModified: '~{n}修改',
     nBreaking: '{n}破坏性变更',
     toggleDarkMode: '切换暗黑模式',
+  },
+  cli: {
+    appDescription: 'AI驱动的代码文档生成器',
+    configNotFound: '未找到配置文件',
+    runInitFirst: '运行 "codedocs init" 创建配置文件',
+    initTitle: 'CodeDocs 初始化',
+    detectingStack: '正在检测项目技术栈...',
+    stackDetected: '技术栈检测完成！',
+    stackDetectFailed: '技术栈检测失败，使用默认值',
+    projectName: '项目名称:',
+    projectNameRequired: '项目名称为必填项',
+    sourceCodePath: '源代码路径:',
+    primaryLanguage: '主要语言/框架:',
+    selectParsers: '选择要使用的解析器:',
+    aiProvider: '文档生成AI提供商:',
+    aiModel: 'AI模型:',
+    apiKeyPrompt: 'API密钥 (留空以通过环境变量设置):',
+    docLanguage: '文档语言:',
+    deployTarget: '部署目标:',
+    generateCI: '是否生成CI/CD管道配置？',
+    generatingConfig: '正在生成配置...',
+    configCreated: '配置创建成功！',
+    initSuccess: 'CodeDocs初始化成功！',
+    createdFiles: '已创建文件:',
+    nextSteps: '下一步:',
+    setEnvVar: '设置 {envVar} 环境变量',
+    initFailed: '配置创建失败',
+    loadingConfig: '正在加载配置...',
+    readingFiles: '正在读取源文件...',
+    noFilesFound: '未找到源文件',
+    checkSourcePath: '请检查配置文件中的源路径',
+    analyzingFiles: '正在分析 {n} 个文件...',
+    analysisComplete: '分析完成！',
+    analysisSummary: '分析摘要:',
+    filesAnalyzed: '已分析文件: {success}/{total}',
+    errors: '错误: {n}',
+    totalExports: '总导出: {n}',
+    totalFunctions: '总函数: {n}',
+    totalClasses: '总类: {n}',
+    resultsSaved: '结果保存至: {path}',
+    runVerbose: '使用 --verbose 查看详细错误信息',
+    analysisFailed: '分析失败',
+    loadingAnalysis: '正在加载分析结果...',
+    analysisNotFound: '未找到分析结果',
+    runAnalyzeFirst: '请先运行 "codedocs analyze"',
+    noResults: '没有可生成的分析结果',
+    noResultsInFile: '分析文件中没有结果',
+    creatingOutputDir: '正在创建输出目录...',
+    generatingDocs: '正在生成文档...',
+    generatingIndex: '正在生成索引页...',
+    generationComplete: '文档生成完成！',
+    generationSummary: '生成摘要:',
+    totalPages: '总生成页面: {n}',
+    outputDirectory: '输出目录: {dir}',
+    indexPage: '索引页: {path}',
+    apiIndex: 'API索引: {path}',
+    totalSize: '总大小: {size}',
+    previewHint: '运行 "codedocs serve" 预览',
+    buildHint: '运行 "codedocs build" 创建生产构建',
+    generationFailed: '生成失败',
+    buildTitle: '文档构建',
+    skippingAnalysis: '跳过分析步骤',
+    skippingGeneration: '跳过生成步骤',
+    buildingSite: '正在构建静态站点...',
+    buildingVite: '正在使用Vite构建...',
+    buildComplete: '构建完成！',
+    deployHint: '将 {dir} 目录部署到托管服务',
+    previewLocalHint: '或使用静态文件服务器本地预览',
+    buildFailed: '构建失败',
+    serverTitle: '启动开发服务器',
+    analyzingSource: '正在分析源代码...',
+    generatingDocumentation: '正在生成文档...',
+    startingVite: '正在启动Vite开发服务器...',
+    serverStarted: '服务器启动成功！',
+    localServer: '本地服务器:',
+    pressCtrlC: '按 Ctrl+C 停止服务器',
+    serverFailed: '服务器启动失败',
+    shuttingDown: '正在关闭服务器...',
+    languages: '语言:',
+    frameworks: '框架:',
+    suggestedParsers: '推荐解析器:',
+    sourcePath: '源路径: {path}',
   },
 };
 
