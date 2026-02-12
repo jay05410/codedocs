@@ -5,6 +5,15 @@ export { ApiEndpointCard, type ApiEndpointCardProps } from './components/ApiEndp
 export { EntityCard, type EntityCardProps } from './components/EntityCard.js';
 export { MermaidChart, type MermaidChartProps } from './components/MermaidChart.js';
 export {
+  ApiPlayground,
+  type ApiPlaygroundProps,
+  type PlaygroundEndpoint,
+  type PlaygroundConfig,
+  type PlaygroundParam,
+  type PlaygroundAuth,
+  type PlaygroundBodySchema,
+} from './components/playground/index.js';
+export {
   type ThemePreset,
   presets,
   getPreset,
