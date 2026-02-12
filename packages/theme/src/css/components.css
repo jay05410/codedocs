@@ -1,0 +1,232 @@
+/* ── API Endpoint Card ── */
+.codedocs-api-card {
+  border: 1px solid var(--codedocs-border-light);
+  border-radius: var(--codedocs-radius-md);
+  margin-bottom: var(--codedocs-spacing-sm);
+  overflow: hidden;
+  border-left: 3px solid var(--codedocs-border);
+}
+
+.codedocs-api-card.deprecated {
+  opacity: 0.7;
+}
+
+.codedocs-api-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--codedocs-spacing-sm);
+  padding: var(--codedocs-spacing-sm) var(--codedocs-spacing-md);
+  background: var(--codedocs-bg-secondary);
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.codedocs-api-method {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--codedocs-radius-sm);
+  color: white;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  min-width: 60px;
+  text-align: center;
+}
+
+.codedocs-api-path {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-weight: 500;
+}
+
+.codedocs-api-handler {
+  margin-left: auto;
+  color: var(--codedocs-text-muted);
+  font-size: 0.8rem;
+}
+
+.codedocs-api-auth {
+  font-size: 0.8rem;
+}
+
+.codedocs-api-deprecated {
+  background: var(--codedocs-method-delete);
+  color: white;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: var(--codedocs-radius-sm);
+}
+
+.codedocs-api-card-body {
+  padding: var(--codedocs-spacing-md);
+}
+
+.codedocs-api-section {
+  margin-bottom: var(--codedocs-spacing-md);
+}
+
+.codedocs-api-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--codedocs-text-secondary);
+  margin-bottom: var(--codedocs-spacing-xs);
+}
+
+.codedocs-api-type {
+  background: var(--codedocs-bg-tertiary);
+  padding: 2px 8px;
+  border-radius: var(--codedocs-radius-sm);
+  font-size: 0.875rem;
+}
+
+.codedocs-api-params {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.codedocs-api-params th,
+.codedocs-api-params td {
+  padding: var(--codedocs-spacing-xs) var(--codedocs-spacing-sm);
+  border-bottom: 1px solid var(--codedocs-border-light);
+}
+
+.codedocs-api-params th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--codedocs-text-secondary);
+}
+
+/* ── Entity Card ── */
+.codedocs-entity-card {
+  border: 1px solid var(--codedocs-border-light);
+  border-radius: var(--codedocs-radius-md);
+  margin-bottom: var(--codedocs-spacing-sm);
+}
+
+.codedocs-entity-header {
+  display: flex;
+  align-items: center;
+  gap: var(--codedocs-spacing-sm);
+  padding: var(--codedocs-spacing-sm) var(--codedocs-spacing-md);
+  background: var(--codedocs-bg-secondary);
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+
+.codedocs-entity-name {
+  font-weight: 600;
+}
+
+.codedocs-entity-table {
+  color: var(--codedocs-text-secondary);
+  font-size: 0.875rem;
+}
+
+.codedocs-entity-badge {
+  background: var(--codedocs-primary);
+  color: white;
+  padding: 1px 8px;
+  border-radius: var(--codedocs-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.codedocs-entity-count {
+  margin-left: auto;
+  color: var(--codedocs-text-muted);
+  font-size: 0.8rem;
+}
+
+.codedocs-entity-body {
+  padding: var(--codedocs-spacing-md);
+}
+
+.codedocs-entity-columns {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.codedocs-entity-columns th,
+.codedocs-entity-columns td {
+  padding: var(--codedocs-spacing-xs) var(--codedocs-spacing-sm);
+  border-bottom: 1px solid var(--codedocs-border-light);
+}
+
+.codedocs-entity-relations h4 {
+  margin-top: var(--codedocs-spacing-md);
+  margin-bottom: var(--codedocs-spacing-sm);
+}
+
+.codedocs-entity-relations ul {
+  list-style: none;
+  padding-left: var(--codedocs-spacing-sm);
+}
+
+.codedocs-entity-relations li {
+  padding: var(--codedocs-spacing-xs) 0;
+}
+
+/* ── Mermaid Chart ── */
+.codedocs-mermaid-wrapper {
+  position: relative;
+  border: 1px solid var(--codedocs-border-light);
+  border-radius: var(--codedocs-radius-md);
+  margin-bottom: var(--codedocs-spacing-md);
+  overflow: hidden;
+}
+
+.codedocs-mermaid-title {
+  padding: var(--codedocs-spacing-sm) var(--codedocs-spacing-md);
+  background: var(--codedocs-bg-secondary);
+  border-bottom: 1px solid var(--codedocs-border-light);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.codedocs-mermaid-toolbar {
+  position: absolute;
+  top: var(--codedocs-spacing-sm);
+  right: var(--codedocs-spacing-sm);
+  display: flex;
+  gap: var(--codedocs-spacing-xs);
+  z-index: 10;
+}
+
+.codedocs-mermaid-btn {
+  background: var(--codedocs-bg);
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-sm);
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--codedocs-text-secondary);
+}
+
+.codedocs-mermaid-btn:hover {
+  background: var(--codedocs-bg-secondary);
+}
+
+.codedocs-mermaid-container {
+  padding: var(--codedocs-spacing-lg);
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+}
+
+.codedocs-mermaid-container.zoomed {
+  min-height: 80vh;
+}
+
+.codedocs-mermaid-error {
+  color: var(--codedocs-method-delete);
+  white-space: pre-wrap;
+}

@@ -1,0 +1,223 @@
+@import './variables.css';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  color: var(--codedocs-text);
+  background: var(--codedocs-bg);
+  line-height: 1.6;
+}
+
+/* ── Layout ── */
+.codedocs-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.codedocs-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--codedocs-header-height);
+  background: var(--codedocs-header-bg);
+  border-bottom: 1px solid var(--codedocs-border-light);
+  backdrop-filter: blur(8px);
+}
+
+.codedocs-header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--codedocs-spacing-lg);
+  gap: var(--codedocs-spacing-lg);
+}
+
+.codedocs-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--codedocs-primary);
+  text-decoration: none;
+}
+
+.codedocs-nav {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--codedocs-spacing-md);
+}
+
+.codedocs-theme-toggle {
+  background: none;
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-md);
+  padding: var(--codedocs-spacing-xs) var(--codedocs-spacing-sm);
+  cursor: pointer;
+  color: var(--codedocs-text);
+}
+
+.codedocs-body {
+  flex: 1;
+  display: flex;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Sidebar ── */
+.codedocs-sidebar {
+  width: var(--codedocs-sidebar-width);
+  flex-shrink: 0;
+  border-right: 1px solid var(--codedocs-sidebar-border);
+  padding: var(--codedocs-spacing-md);
+  position: sticky;
+  top: var(--codedocs-header-height);
+  height: calc(100vh - var(--codedocs-header-height));
+  overflow-y: auto;
+}
+
+.codedocs-sidebar-section {
+  margin-bottom: var(--codedocs-spacing-sm);
+}
+
+.codedocs-sidebar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--codedocs-spacing-sm) var(--codedocs-spacing-xs);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--codedocs-text-secondary);
+}
+
+.codedocs-sidebar-arrow {
+  border: solid var(--codedocs-text-muted);
+  border-width: 0 2px 2px 0;
+  padding: 3px;
+  transform: rotate(45deg);
+  transition: transform 0.2s;
+}
+
+.codedocs-sidebar-arrow.collapsed {
+  transform: rotate(-45deg);
+}
+
+.codedocs-sidebar-list {
+  list-style: none;
+  padding-left: var(--codedocs-spacing-sm);
+}
+
+.codedocs-sidebar-link {
+  display: block;
+  padding: var(--codedocs-spacing-xs) var(--codedocs-spacing-sm);
+  border-radius: var(--codedocs-radius-sm);
+  color: var(--codedocs-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background 0.15s;
+}
+
+.codedocs-sidebar-link:hover {
+  background: var(--codedocs-bg-secondary);
+}
+
+.codedocs-sidebar-link.active {
+  background: var(--codedocs-bg-tertiary);
+  color: var(--codedocs-primary);
+  font-weight: 500;
+}
+
+/* ── Main Content ── */
+.codedocs-main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--codedocs-spacing-xl);
+}
+
+.codedocs-content {
+  max-width: var(--codedocs-content-max-width);
+}
+
+.codedocs-content h1 { font-size: 2rem; margin-bottom: var(--codedocs-spacing-lg); }
+.codedocs-content h2 { font-size: 1.5rem; margin-top: var(--codedocs-spacing-xl); margin-bottom: var(--codedocs-spacing-md); }
+.codedocs-content h3 { font-size: 1.25rem; margin-top: var(--codedocs-spacing-lg); margin-bottom: var(--codedocs-spacing-sm); }
+
+.codedocs-content p { margin-bottom: var(--codedocs-spacing-md); }
+
+.codedocs-content code {
+  background: var(--codedocs-code-bg);
+  border: 1px solid var(--codedocs-code-border);
+  border-radius: var(--codedocs-radius-sm);
+  padding: 1px 6px;
+  font-size: 0.875em;
+}
+
+.codedocs-content pre {
+  background: var(--codedocs-code-bg);
+  border: 1px solid var(--codedocs-code-border);
+  border-radius: var(--codedocs-radius-md);
+  padding: var(--codedocs-spacing-md);
+  overflow-x: auto;
+  margin-bottom: var(--codedocs-spacing-md);
+}
+
+.codedocs-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.codedocs-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--codedocs-spacing-md);
+}
+
+.codedocs-content th,
+.codedocs-content td {
+  padding: var(--codedocs-spacing-sm) var(--codedocs-spacing-md);
+  border: 1px solid var(--codedocs-border-light);
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.codedocs-content th {
+  background: var(--codedocs-bg-secondary);
+  font-weight: 600;
+}
+
+.codedocs-content details {
+  margin-bottom: var(--codedocs-spacing-md);
+  border: 1px solid var(--codedocs-border-light);
+  border-radius: var(--codedocs-radius-md);
+}
+
+.codedocs-content details summary {
+  padding: var(--codedocs-spacing-sm) var(--codedocs-spacing-md);
+  cursor: pointer;
+  font-weight: 500;
+  background: var(--codedocs-bg-secondary);
+  border-radius: var(--codedocs-radius-md);
+}
+
+.codedocs-content details[open] summary {
+  border-bottom: 1px solid var(--codedocs-border-light);
+  border-radius: var(--codedocs-radius-md) var(--codedocs-radius-md) 0 0;
+}
+
+.codedocs-content details > :not(summary) {
+  padding: var(--codedocs-spacing-md);
+}
