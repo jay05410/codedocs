@@ -1,0 +1,68 @@
+import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
+import { configSchema, type CodeDocsConfig } from './schema.js';
+import { DEFAULT_CONFIG } from './defaults.js';
+
+/**
+ * Deep merge utility for config objects
+ */
+function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+  const result = { ...target };
+
+  for (const key in source) {
+    const sourceValue = source[key];
+    const targetValue = result[key];
+
+    if (
+      sourceValue &&
+      typeof sourceValue === 'object' &&
+      !Array.isArray(sourceValue) &&
+      targetValue &&
+      typeof targetValue === 'object' &&
+      !Array.isArray(targetValue)
+    ) {
+      result[key] = deepMerge(targetValue, sourceValue) as any;
+    } else if (sourceValue !== undefined) {
+      result[key] = sourceValue as any;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Load and validate configuration from a TypeScript config file
+ * @param configPath - Path to the config file (default: './codedocs.config.ts')
+ * @returns Validated configuration object
+ */
+export async function loadConfig(configPath = './codedocs.config.ts'): Promise<CodeDocsConfig> {
+  const absolutePath = resolve(process.cwd(), configPath);
+  const fileUrl = pathToFileURL(absolutePath).href;
+
+  try {
+    // Dynamic import of the config file
+    const configModule = await import(fileUrl);
+    const userConfig = configModule.default || configModule.config;
+
+    if (!userConfig) {
+      throw new Error(
+        `Config file at ${configPath} must export a default config or named 'config' export`
+      );
+    }
+
+    // Merge with defaults
+    const mergedConfig = deepMerge(DEFAULT_CONFIG, userConfig);
+
+    // Validate with Zod schema
+    const validatedConfig = configSchema.parse(mergedConfig);
+
+    return validatedConfig;
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ERR_MODULE_NOT_FOUND') {
+      console.warn(`Config file not found at ${configPath}, using defaults`);
+      return DEFAULT_CONFIG;
+    }
+
+    throw new Error(`Failed to load config from ${configPath}: ${error}`);
+  }
+}
