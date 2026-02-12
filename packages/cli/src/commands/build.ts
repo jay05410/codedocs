@@ -48,6 +48,10 @@ export const buildCommand = new Command('build')
       console.log(chalk.cyan(strings.buildingSite));
       await runViteBuild(outDir, options.verbose);
 
+      // Step 4: Index with Pagefind
+      console.log(chalk.cyan('Indexing site with Pagefind...'));
+      await runPagefindIndex(outDir, options.verbose);
+
       // Summary
       console.log(chalk.green(`\n✓ ${strings.buildComplete}\n`));
       console.log(chalk.dim(`  ${t(strings.outputDirectory, { dir: outDir })}`));
@@ -162,6 +166,59 @@ async function runViteBuild(outDir: string, verbose: boolean): Promise<void> {
 
     cmd.on('error', (error) => {
       spinner.fail('Vite build failed');
+      reject(error);
+    });
+  });
+}
+
+async function runPagefindIndex(outDir: string, verbose: boolean): Promise<void> {
+  const spinner = ora('Indexing with Pagefind...').start();
+
+  return new Promise((resolve, reject) => {
+    const cmd = spawn(
+      'npx',
+      ['pagefind', '--site', outDir],
+      {
+        stdio: verbose ? 'inherit' : 'pipe',
+        shell: true,
+      }
+    );
+
+    if (!verbose) {
+      let output = '';
+      cmd.stdout?.on('data', (data) => {
+        output += data.toString();
+      });
+      cmd.stderr?.on('data', (data) => {
+        output += data.toString();
+      });
+
+      cmd.on('close', (code) => {
+        if (code === 0) {
+          spinner.succeed('Pagefind indexing complete');
+          resolve();
+        } else {
+          spinner.fail('Pagefind indexing failed');
+          if (output) {
+            console.error(chalk.red(output));
+          }
+          reject(new Error(`Pagefind exited with code ${code}`));
+        }
+      });
+    } else {
+      cmd.on('close', (code) => {
+        if (code === 0) {
+          spinner.succeed('Pagefind indexing complete');
+          resolve();
+        } else {
+          spinner.fail('Pagefind indexing failed');
+          reject(new Error(`Pagefind exited with code ${code}`));
+        }
+      });
+    }
+
+    cmd.on('error', (error) => {
+      spinner.fail('Pagefind indexing failed');
       reject(error);
     });
   });

@@ -1,5 +1,7 @@
+import { readdir, readFile } from 'fs/promises';
+import { join, resolve, extname, basename } from 'path';
 import type { AnalysisResult, EndpointInfo, EntityInfo, ServiceInfo } from '../parser/types.js';
-import type { GeneratorConfig, GeneratedPage, PageMeta } from './types.js';
+import type { GeneratorConfig, GeneratedPage, PageMeta, SectionConfig } from './types.js';
 export type { PageMeta } from './types.js';
 
 /**
@@ -39,7 +41,10 @@ export class MarkdownGenerator {
           pages.push(this.generateArchitecturePage(analysis));
           break;
         case 'custom':
-          // Custom sections are handled by user-provided templates
+          if (section.dir) {
+            const customPages = await this.loadCustomPages(section);
+            pages.push(...customPages);
+          }
           break;
       }
     }
@@ -397,6 +402,70 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
   }
 
   /**
+   * Load custom markdown pages from a directory
+   */
+  private async loadCustomPages(section: SectionConfig): Promise<GeneratedPage[]> {
+    const pages: GeneratedPage[] = [];
+
+    if (!section.dir) {
+      return pages;
+    }
+
+    // Resolve directory path relative to baseDir
+    const dirPath = this.config.baseDir
+      ? resolve(this.config.baseDir, section.dir)
+      : resolve(section.dir);
+
+    try {
+      // Read all files in the directory
+      const files = await readdir(dirPath);
+      const mdFiles = files.filter(f => extname(f) === '.md');
+
+      for (const file of mdFiles) {
+        const filePath = join(dirPath, file);
+        const content = await readFile(filePath, 'utf-8');
+
+        // Parse frontmatter if present
+        const { meta: frontmatter, body } = extractFrontmatter(content);
+        const title = frontmatter.title || basename(file, '.md');
+        const description = frontmatter.description;
+
+        // Build page path: section.id/filename
+        const pagePath = `${section.id}/${file}`;
+
+        // Create PageMeta from frontmatter
+        const meta: PageMeta = {
+          title,
+          description,
+          tags: frontmatter.tags ? frontmatter.tags.split(',').map((t: string) => t.trim()) : undefined,
+          canonical: frontmatter.canonical,
+          robots: frontmatter.robots,
+          ogTitle: frontmatter.og_title,
+          ogDescription: frontmatter.og_description,
+          ogImage: frontmatter.og_image,
+          ogType: frontmatter.og_type,
+          twitterCard: frontmatter.twitter_card,
+          twitterTitle: frontmatter.twitter_title,
+          twitterDescription: frontmatter.twitter_description,
+          twitterImage: frontmatter.twitter_image,
+        };
+
+        pages.push({
+          path: pagePath,
+          title,
+          content: body,
+          meta,
+          sidebarPosition: frontmatter.sidebar_position ? Number(frontmatter.sidebar_position) : undefined,
+        });
+      }
+    } catch (error) {
+      console.warn(`Warning: Could not read custom pages from ${dirPath}:`, error);
+    }
+
+    return pages;
+  }
+
+  /**
    * Generate changelog page
    */
   generateChangelogPage(): GeneratedPage {
@@ -585,4 +654,24 @@ export function methodBadge(method: string): string {
   };
   const icon = colors[upper] || '⚪';
   return `${icon} **${upper}**`;
+}
+
+/**
+ * Extract YAML frontmatter from markdown content
+ */
+function extractFrontmatter(content: string): { meta: Record<string, string>; body: string } {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!match) return { meta: {}, body: content };
+
+  const meta: Record<string, string> = {};
+  for (const line of match[1].split('\n')) {
+    const colonIdx = line.indexOf(':');
+    if (colonIdx > 0) {
+      const key = line.slice(0, colonIdx).trim();
+      const value = line.slice(colonIdx + 1).trim().replace(/^["']|["']$/g, '');
+      meta[key] = value;
+    }
+  }
+
+  return { meta, body: match[2] };
 }

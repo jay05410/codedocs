@@ -230,3 +230,95 @@
   color: var(--codedocs-method-delete);
   white-space: pre-wrap;
 }
+
+/* ── Shiki Code Highlighting ── */
+.shiki {
+  padding: var(--codedocs-spacing-md);
+  border-radius: var(--codedocs-radius-md);
+  overflow-x: auto;
+  margin: var(--codedocs-spacing-md) 0;
+}
+
+.shiki .dark {
+  display: none;
+}
+
+html.dark .shiki .light {
+  display: none;
+}
+
+html.dark .shiki .dark {
+  display: block;
+}
+
+/* ── Search Bar ── */
+.codedocs-search-button {
+  display: flex;
+  align-items: center;
+  gap: var(--codedocs-spacing-xs);
+  padding: var(--codedocs-spacing-xs) var(--codedocs-spacing-sm);
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-sm);
+  background: var(--codedocs-bg);
+  color: var(--codedocs-text-secondary);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.codedocs-search-button:hover {
+  background: var(--codedocs-bg-secondary);
+  border-color: var(--codedocs-primary);
+}
+
+.codedocs-search-text {
+  color: var(--codedocs-text-muted);
+}
+
+.codedocs-search-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+  z-index: 1000;
+}
+
+.codedocs-search-modal-content {
+  position: relative;
+  background: var(--codedocs-bg);
+  border-radius: var(--codedocs-radius-md);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 600px;
+  max-height: 70vh;
+  overflow: auto;
+  padding: var(--codedocs-spacing-md);
+}
+
+.codedocs-search-close {
+  position: absolute;
+  top: var(--codedocs-spacing-sm);
+  right: var(--codedocs-spacing-sm);
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--codedocs-text-secondary);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--codedocs-radius-sm);
+}
+
+.codedocs-search-close:hover {
+  background: var(--codedocs-bg-secondary);
+  color: var(--codedocs-text);
+}

@@ -46,6 +46,7 @@ export const analyzeCommand = new Command('analyze')
       }
 
       spinner.text = t(strings.analyzingFiles, { n: sourceFiles.length });
+      console.log(chalk.dim(`  Found ${sourceFiles.length} files to analyze`));
 
       // Create parser engine with proper type casting
       const parserEngine = new ParserEngine(config.parsers as any);
@@ -53,7 +54,7 @@ export const analyzeCommand = new Command('analyze')
       // Analyze all files
       const analysisResult = await parserEngine.analyze(sourceFiles);
       const successCount = sourceFiles.length;
-      const errorCount = 0;
+      const errorCount = analysisResult.errors?.length || 0;
 
       if (options.verbose) {
         console.log(chalk.dim(`\n  Analyzed ${sourceFiles.length} files`));

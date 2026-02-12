@@ -39,3 +39,6 @@ domain-grouping.json
 changelog.json
 build-metadata.json
 docs-output/
+
+# npm-cache
+.npm-cache

@@ -128,4 +128,5 @@ export interface AnalysisResult {
   types: TypeInfo[];
   dependencies: DependencyInfo[];
   custom: Record<string, unknown>;
+  errors?: Array<{ parser: string; error: string; files: string[] }>;
 }

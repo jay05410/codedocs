@@ -1,5 +1,6 @@
 import React, { type ReactNode } from 'react';
 import { Sidebar } from '../components/Sidebar.js';
+import { SearchBar } from '../components/SearchBar.js';
 import { I18nProvider, useI18n } from '../i18n/index.js';
 import type { Locale } from '@codedocs/core';
 
@@ -40,7 +41,7 @@ function LayoutInner({ children, sidebar = [], title = 'CodeDocs' }: Omit<Layout
         <div className="codedocs-header-inner">
           <a href="/" className="codedocs-logo">{title}</a>
           <nav className="codedocs-nav">
-            <div className="codedocs-search" id="codedocs-search" />
+            <SearchBar />
           </nav>
           <button
             className="codedocs-theme-toggle"

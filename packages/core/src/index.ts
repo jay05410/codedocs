@@ -2,6 +2,7 @@
 export { defineConfig } from './config/schema.js';
 export { loadConfig } from './config/loader.js';
 export type { CodeDocsConfig } from './config/schema.js';
+export { Logger, LogLevel, logger } from './logger.js';
 export type {
   ParserPlugin,
   SourceFile,
@@ -18,6 +19,8 @@ export type {
 } from './parser/types.js';
 export { ParserEngine } from './parser/engine.js';
 export { FileReader } from './parser/file-reader.js';
+export { AnalysisCache } from './parser/cache.js';
+export type { CacheData, CacheEntry } from './parser/cache.js';
 export type { AiProvider, AiProviderConfig } from './ai/types.js';
 export { createAiProvider } from './ai/providers/index.js';
 export { ExampleGenerator, formatExampleAsMarkdown } from './ai/example-generator.js';

@@ -5,19 +5,39 @@ import type {
   AnalysisResult,
   ParseResult,
 } from './types.js';
+import type { AnalysisCache } from './cache.js';
+import { logger } from '../logger.js';
 
 export class ParserEngine {
+  private logger = logger.child('ParserEngine');
+
   constructor(private parsers: ParserPlugin[]) {}
 
-  async analyze(files: SourceFile[]): Promise<AnalysisResult> {
+  async analyze(files: SourceFile[], cache?: AnalysisCache): Promise<AnalysisResult> {
     const results: ParseResult[] = [];
+    const errors: Array<{ parser: string; error: string; files: string[] }> = [];
 
     // Run each parser on matching files
     for (const parser of this.parsers) {
       const matchedFiles = this.matchFiles(files, parser.filePattern);
       if (matchedFiles.length > 0) {
-        const result = await parser.parse(matchedFiles);
-        results.push(result);
+        try {
+          this.logger.debug(`Running parser "${parser.name}" on ${matchedFiles.length} files`);
+          const result = await parser.parse(matchedFiles);
+          results.push(result);
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `Parser "${parser.name}" failed: ${errorMsg}`,
+            `Files: ${matchedFiles.map(f => f.path).join(', ')}`
+          );
+          errors.push({
+            parser: parser.name,
+            error: errorMsg,
+            files: matchedFiles.map(f => f.path),
+          });
+          // Continue processing other parsers
+        }
       }
     }
 
@@ -46,6 +66,7 @@ export class ParserEngine {
       types: merged.types ?? [],
       dependencies: merged.dependencies ?? [],
       custom: merged.custom ?? {},
+      errors: errors.length > 0 ? errors : undefined,
     };
 
     return analysisResult;

@@ -1,0 +1,18 @@
+image: node:20
+
+pages:
+  stage: deploy
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npx codedocs build
+    - mv dist public
+  artifacts:
+    paths:
+      - public
+  only:
+    - {{branch}}
+  variables:
+    {{envVar}}: ${{{envVar}}}

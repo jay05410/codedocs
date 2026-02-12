@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, join, basename } from 'path';
+import Handlebars from 'handlebars';
 import { detectStack, formatDetectionResult } from '../detect.js';
 import type { DetectedStack, SuggestedParser } from '../detect.js';
 import { getCliStrings, t, initLocale } from '../i18n.js';
@@ -17,7 +18,7 @@ interface InitAnswers {
   aiModel?: string;
   apiKey?: string;
   locale: 'ko' | 'en' | 'ja' | 'zh';
-  deployTarget: 'github-pages' | 'gitlab-pages' | 'nginx' | 'local';
+  deployTarget: 'github-pages' | 'gitlab-pages' | 'nginx' | 'jenkins' | 'local';
   generateCI: boolean;
 }
 
@@ -26,9 +27,16 @@ export const initCommand = new Command('init')
   .option('-y, --yes', 'Skip prompts and use defaults')
   .option('-d, --detect', 'Auto-detect stack and skip prompts')
   .option('-s, --source <path>', 'Target source directory to analyze')
+  .option('--ci', 'Generate CI/CD config only')
   .action(async (options) => {
     const s = getCliStrings().cli;
     console.log(chalk.bold.cyan(`\n📚 ${s.initTitle}\n`));
+
+    // Handle --ci only mode
+    if (options.ci) {
+      await generateCIOnly();
+      return;
+    }
 
     // Auto-detect stack
     const targetDir = options.source ? resolve(options.source) : process.cwd();
@@ -169,6 +177,7 @@ export const initCommand = new Command('init')
           choices: [
             { name: 'GitHub Pages', value: 'github-pages' },
             { name: 'GitLab Pages', value: 'gitlab-pages' },
+            { name: 'Jenkins', value: 'jenkins' },
             { name: 'Nginx/Apache', value: 'nginx' },
             { name: 'Local only', value: 'local' },
           ],
@@ -221,8 +230,14 @@ export const initCommand = new Command('init')
         const ciFile =
           answers.deployTarget === 'github-pages'
             ? '.github/workflows/deploy.yml'
-            : '.gitlab-ci.yml';
-        console.log(chalk.dim(`  - ${ciFile}`));
+            : answers.deployTarget === 'gitlab-pages'
+            ? '.gitlab-ci.yml'
+            : answers.deployTarget === 'jenkins'
+            ? 'Jenkinsfile'
+            : '';
+        if (ciFile) {
+          console.log(chalk.dim(`  - ${ciFile}`));
+        }
       }
 
       console.log(chalk.cyan(`\n${strings.nextSteps}`));
@@ -341,92 +356,86 @@ ${parsersBlock}${aiConfig}
 }
 
 function generateCIConfig(answers: InitAnswers): void {
+  const envVar = getEnvVarName(answers.aiProvider);
+  const branch = 'main';
+
   if (answers.deployTarget === 'github-pages') {
     const workflowDir = resolve(process.cwd(), '.github/workflows');
     if (!existsSync(workflowDir)) {
       mkdirSync(workflowDir, { recursive: true });
     }
 
-    const workflowContent = `name: Deploy CodeDocs
+    const template = Handlebars.compile(GITHUB_ACTIONS_TEMPLATE);
+    const content = template({ branch, envVar });
 
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build documentation
-        run: npx codedocs build
-        env:
-          ${getEnvVarName(answers.aiProvider)}: \${{ secrets.${getEnvVarName(answers.aiProvider)} }}
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
-        with:
-          path: ./dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v3
-`;
-
-    writeFileSync(
-      join(workflowDir, 'deploy.yml'),
-      workflowContent,
-      'utf-8'
-    );
+    writeFileSync(join(workflowDir, 'deploy.yml'), content, 'utf-8');
   } else if (answers.deployTarget === 'gitlab-pages') {
-    const gitlabCIContent = `image: node:20
+    const template = Handlebars.compile(GITLAB_CI_TEMPLATE);
+    const content = template({ branch, envVar });
 
-pages:
-  stage: deploy
-  cache:
-    paths:
-      - node_modules/
-  script:
-    - npm ci
-    - npx codedocs build
-    - mv dist public
-  artifacts:
-    paths:
-      - public
-  only:
-    - main
-  variables:
-    ${getEnvVarName(answers.aiProvider)}: \${${getEnvVarName(answers.aiProvider)}}
-`;
+    writeFileSync(resolve(process.cwd(), '.gitlab-ci.yml'), content, 'utf-8');
+  } else if (answers.deployTarget === 'jenkins') {
+    const template = Handlebars.compile(JENKINSFILE_TEMPLATE);
+    const content = template({
+      envVar,
+      envVarCredentialId: `${envVar.toLowerCase()}-credential`,
+      isNginx: false,
+      deployPath: '/var/www/codedocs/dist/',
+    });
 
-    writeFileSync(
-      resolve(process.cwd(), '.gitlab-ci.yml'),
-      gitlabCIContent,
-      'utf-8'
-    );
+    writeFileSync(resolve(process.cwd(), 'Jenkinsfile'), content, 'utf-8');
+  }
+}
+
+async function generateCIOnly(): Promise<void> {
+  const s = getCliStrings().cli;
+
+  const answers = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'deployTarget',
+      message: 'Select deployment target:',
+      choices: [
+        { name: 'GitHub Pages', value: 'github-pages' },
+        { name: 'GitLab Pages', value: 'gitlab-pages' },
+        { name: 'Jenkins', value: 'jenkins' },
+        { name: 'Nginx/Apache', value: 'nginx' },
+      ],
+      default: 'github-pages',
+    },
+    {
+      type: 'list',
+      name: 'aiProvider',
+      message: s.aiProvider,
+      choices: [
+        { name: 'OpenAI (GPT-4, GPT-3.5)', value: 'openai' },
+        { name: 'Anthropic Claude', value: 'claude' },
+        { name: 'Google Gemini', value: 'gemini' },
+        { name: 'Ollama (local)', value: 'ollama' },
+        { name: 'None', value: 'none' },
+      ],
+      default: 'openai',
+    },
+  ]);
+
+  const spinner = ora('Generating CI/CD configuration...').start();
+
+  try {
+    generateCIConfig(answers as InitAnswers);
+    spinner.succeed('CI/CD configuration created');
+
+    const ciFile =
+      answers.deployTarget === 'github-pages'
+        ? '.github/workflows/deploy.yml'
+        : answers.deployTarget === 'gitlab-pages'
+        ? '.gitlab-ci.yml'
+        : 'Jenkinsfile';
+
+    console.log(chalk.green(`\n✓ Created ${ciFile}\n`));
+  } catch (error) {
+    spinner.fail('Failed to generate CI/CD config');
+    console.error(chalk.red((error as Error).message));
+    process.exit(1);
   }
 }
 
@@ -444,3 +453,104 @@ function getEnvVarName(provider: string): string {
       return 'AI_API_KEY';
   }
 }
+
+// CI/CD Templates (embedded as string constants for npm package compatibility)
+const GITHUB_ACTIONS_TEMPLATE = `name: Deploy CodeDocs
+
+on:
+  push:
+    branches: [{{branch}}]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build documentation
+        run: npx codedocs build
+        env:
+          {{envVar}}: \${{ secrets.{{envVar}} }}
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v3
+`;
+
+const GITLAB_CI_TEMPLATE = `image: node:20
+
+pages:
+  stage: deploy
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npx codedocs build
+    - mv dist public
+  artifacts:
+    paths:
+      - public
+  only:
+    - {{branch}}
+  variables:
+    {{envVar}}: \${{{envVar}}}
+`;
+
+const JENKINSFILE_TEMPLATE = `pipeline {
+    agent any
+
+    tools {
+        nodejs 'Node20'
+    }
+
+    environment {
+        {{envVar}} = credentials('{{envVarCredentialId}}')
+    }
+
+    stages {
+        stage('Install') {
+            steps {
+                sh 'npm ci'
+            }
+        }
+        stage('Build Docs') {
+            steps {
+                sh 'npx codedocs build'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                {{#if isNginx}}
+                sh 'rsync -avz --delete dist/ {{deployPath}}'
+                {{else}}
+                archiveArtifacts artifacts: 'dist/**', fingerprint: true
+                {{/if}}
+            }
+        }
+    }
+}
+`;

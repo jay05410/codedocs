@@ -11,7 +11,7 @@ export interface CodeDocsViteOptions {
 
 export function codedocsPlugin(options: CodeDocsViteOptions = {}): Plugin {
   const docsDir = options.docsDir || './docs';
-  const mdProcessor = createMarkdownProcessor();
+  let mdProcessor: Awaited<ReturnType<typeof createMarkdownProcessor>> | null = null;
 
   return {
     name: 'codedocs',
@@ -33,6 +33,9 @@ export function codedocsPlugin(options: CodeDocsViteOptions = {}): Plugin {
     async transform(code, id) {
       // Transform .md files into importable modules
       if (id.endsWith('.md')) {
+        if (!mdProcessor) {
+          mdProcessor = await createMarkdownProcessor();
+        }
         const html = await mdProcessor.process(code);
         return {
           code: `export const html = ${JSON.stringify(String(html))};\nexport const raw = ${JSON.stringify(code)};`,

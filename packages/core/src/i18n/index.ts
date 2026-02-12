@@ -244,6 +244,14 @@ export interface I18nStrings {
     serverFailed: string;
     shuttingDown: string;
 
+    // Dev command
+    devTitle: string;
+    devMode: string;
+    watchingFiles: string;
+    fileChanged: string;
+    reanalyzing: string;
+    hotReloadActive: string;
+
     // Detect
     languages: string;
     frameworks: string;
@@ -468,6 +476,12 @@ const en: I18nStrings = {
     pressCtrlC: 'Press Ctrl+C to stop the server',
     serverFailed: 'Server failed to start',
     shuttingDown: 'Shutting down server...',
+    devTitle: 'Starting Development Mode',
+    devMode: 'Development mode with hot reload',
+    watchingFiles: 'Watching for file changes...',
+    fileChanged: 'File changed',
+    reanalyzing: 'Re-analyzing and regenerating...',
+    hotReloadActive: 'Hot reload is active',
     languages: 'Languages:',
     frameworks: 'Frameworks:',
     suggestedParsers: 'Suggested parsers:',
@@ -691,6 +705,12 @@ const ko: I18nStrings = {
     pressCtrlC: 'Ctrl+C로 서버 종료',
     serverFailed: '서버 시작 실패',
     shuttingDown: '서버 종료 중...',
+    devTitle: '개발 모드 시작',
+    devMode: '핫 리로드 개발 모드',
+    watchingFiles: '파일 변경 감지 중...',
+    fileChanged: '파일 변경됨',
+    reanalyzing: '재분석 및 재생성 중...',
+    hotReloadActive: '핫 리로드 활성화',
     languages: '언어:',
     frameworks: '프레임워크:',
     suggestedParsers: '추천 파서:',
@@ -914,6 +934,12 @@ const ja: I18nStrings = {
     pressCtrlC: 'Ctrl+Cでサーバー停止',
     serverFailed: 'サーバーの起動に失敗しました',
     shuttingDown: 'サーバー終了中...',
+    devTitle: '開発モード起動',
+    devMode: 'ホットリロード開発モード',
+    watchingFiles: 'ファイル変更監視中...',
+    fileChanged: 'ファイル変更',
+    reanalyzing: '再分析・再生成中...',
+    hotReloadActive: 'ホットリロード有効',
     languages: '言語:',
     frameworks: 'フレームワーク:',
     suggestedParsers: '推奨パーサー:',
@@ -1137,6 +1163,12 @@ const zh: I18nStrings = {
     pressCtrlC: '按 Ctrl+C 停止服务器',
     serverFailed: '服务器启动失败',
     shuttingDown: '正在关闭服务器...',
+    devTitle: '启动开发模式',
+    devMode: '热重载开发模式',
+    watchingFiles: '正在监视文件变化...',
+    fileChanged: '文件已更改',
+    reanalyzing: '正在重新分析和生成...',
+    hotReloadActive: '热重载已激活',
     languages: '语言:',
     frameworks: '框架:',
     suggestedParsers: '推荐解析器:',

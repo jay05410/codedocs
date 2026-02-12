@@ -74,7 +74,10 @@ export const generateCommand = new Command('generate')
       const generatedFiles: string[] = [];
 
       // Generate documentation for each analysis result
-      for (const result of analysisResults) {
+      for (let i = 0; i < analysisResults.length; i++) {
+        const result = analysisResults[i];
+        spinner.text = `${strings.generatingDocs} (${i + 1}/${analysisResults.length})`;
+
         try {
           const pages = await generator.generate(result);
 

@@ -16,7 +16,7 @@ export interface SsgPage {
  * Reads all .md files, processes them through unified, and returns SsgPage[].
  */
 export async function buildStaticPages(docsDir: string): Promise<SsgPage[]> {
-  const processor = createMarkdownProcessor();
+  const processor = await createMarkdownProcessor();
   const pages: SsgPage[] = [];
 
   const files = await collectMarkdownFiles(docsDir);

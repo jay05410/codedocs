@@ -3,6 +3,7 @@ export interface GeneratorConfig {
   locale: 'ko' | 'en' | 'ja' | 'zh';
   sections: SectionConfig[];
   pageOverrides?: Record<string, PageMeta>;
+  baseDir?: string;  // Base directory for resolving custom page paths
 }
 
 export interface SectionConfig {
