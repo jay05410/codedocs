@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { VersionCompareProps, DiffItem, DiffDetail, BreakingChangeItem } from './types.js';
+import { useI18n } from '../../i18n/index.js';
 import './version-compare.css';
 
 export function VersionCompare({
@@ -9,6 +10,8 @@ export function VersionCompare({
   defaultExpanded = true,
 }: VersionCompareProps) {
   const { summary, breakingChanges } = comparison;
+  const { strings, t } = useI18n();
+  const th = strings.theme;
 
   return (
     <div className="codedocs-version-compare">
@@ -20,11 +23,11 @@ export function VersionCompare({
           <span className="vc-version">{comparison.toVersion}</span>
         </h2>
         <div className="vc-badges">
-          {summary.added > 0 && <span className="vc-badge vc-badge-added">+{summary.added} added</span>}
-          {summary.removed > 0 && <span className="vc-badge vc-badge-removed">-{summary.removed} removed</span>}
-          {summary.modified > 0 && <span className="vc-badge vc-badge-modified">~{summary.modified} modified</span>}
+          {summary.added > 0 && <span className="vc-badge vc-badge-added">{t(th.nAdded, { n: summary.added })}</span>}
+          {summary.removed > 0 && <span className="vc-badge vc-badge-removed">{t(th.nRemoved, { n: summary.removed })}</span>}
+          {summary.modified > 0 && <span className="vc-badge vc-badge-modified">{t(th.nModified, { n: summary.modified })}</span>}
           {summary.breakingChanges > 0 && (
-            <span className="vc-badge vc-badge-breaking">{summary.breakingChanges} breaking</span>
+            <span className="vc-badge vc-badge-breaking">{t(th.nBreaking, { n: summary.breakingChanges })}</span>
           )}
         </div>
       </div>
@@ -36,28 +39,28 @@ export function VersionCompare({
 
       {/* Sections */}
       <DiffSection
-        title="Endpoints"
+        title={th.endpoints}
         items={comparison.endpoints}
         showUnchanged={showUnchanged}
         collapsible={collapsible}
         defaultExpanded={defaultExpanded}
       />
       <DiffSection
-        title="Entities"
+        title={th.entities}
         items={comparison.entities}
         showUnchanged={showUnchanged}
         collapsible={collapsible}
         defaultExpanded={defaultExpanded}
       />
       <DiffSection
-        title="Types"
+        title={th.types}
         items={comparison.types}
         showUnchanged={showUnchanged}
         collapsible={collapsible}
         defaultExpanded={defaultExpanded}
       />
       <DiffSection
-        title="Services"
+        title={th.services}
         items={comparison.services}
         showUnchanged={showUnchanged}
         collapsible={collapsible}
@@ -70,14 +73,17 @@ export function VersionCompare({
 // ── Breaking Changes Section ──
 
 function BreakingChangesSection({ changes }: { changes: BreakingChangeItem[] }) {
+  const { strings } = useI18n();
+  const th = strings.theme;
+
   return (
     <div className="vc-breaking">
-      <h3 className="vc-breaking-title">Breaking Changes</h3>
+      <h3 className="vc-breaking-title">{th.breakingChanges}</h3>
       <div className="vc-breaking-list">
         {changes.map((change, i) => (
           <div key={i} className={`vc-breaking-item vc-severity-${change.severity}`}>
             <span className="vc-breaking-severity">
-              {change.severity === 'critical' ? 'CRITICAL' : 'WARNING'}
+              {change.severity === 'critical' ? th.critical : th.warning}
             </span>
             <span className="vc-breaking-category">{change.category}</span>
             <span className="vc-breaking-name">{change.name}</span>
@@ -145,6 +151,8 @@ function DiffSection({
 
 function DiffItemRow({ item }: { item: DiffItem }) {
   const [expanded, setExpanded] = useState(false);
+  const { strings } = useI18n();
+  const th = strings.theme;
   const hasDetails = item.changes.length > 0;
 
   return (
@@ -163,10 +171,10 @@ function DiffItemRow({ item }: { item: DiffItem }) {
           <table className="vc-detail-table">
             <thead>
               <tr>
-                <th>Status</th>
-                <th>Field</th>
-                <th>Previous</th>
-                <th>Current</th>
+                <th>{th.status}</th>
+                <th>{th.field}</th>
+                <th>{th.previous}</th>
+                <th>{th.current}</th>
               </tr>
             </thead>
             <tbody>

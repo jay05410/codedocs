@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useI18n } from '../i18n/index.js';
 
 export interface EntityCardProps {
   name: string;
@@ -19,6 +20,7 @@ export interface EntityCardProps {
 
 export function EntityCard({ name, tableName, dbType, columns, relations = [] }: EntityCardProps) {
   const [open, setOpen] = useState(false);
+  const { strings, t } = useI18n();
 
   return (
     <div className="codedocs-entity-card">
@@ -32,18 +34,18 @@ export function EntityCard({ name, tableName, dbType, columns, relations = [] }:
           <code>{tableName}</code>
         </span>
         <span className="codedocs-entity-badge">{dbType}</span>
-        <span className="codedocs-entity-count">{columns.length} columns</span>
+        <span className="codedocs-entity-count">{t(strings.theme.nColumns, { n: columns.length })}</span>
       </button>
       {open && (
         <div className="codedocs-entity-body">
           <table className="codedocs-entity-columns">
             <thead>
               <tr>
-                <th>Column</th>
-                <th>Field</th>
-                <th>Type</th>
-                <th>Nullable</th>
-                <th>PK</th>
+                <th>{strings.theme.column}</th>
+                <th>{strings.theme.field}</th>
+                <th>{strings.theme.type}</th>
+                <th>{strings.theme.nullable}</th>
+                <th>{strings.theme.pk}</th>
               </tr>
             </thead>
             <tbody>
@@ -60,7 +62,7 @@ export function EntityCard({ name, tableName, dbType, columns, relations = [] }:
           </table>
           {relations.length > 0 && (
             <div className="codedocs-entity-relations">
-              <h4>Relations</h4>
+              <h4>{strings.theme.relations}</h4>
               <ul>
                 {relations.map((rel, i) => (
                   <li key={i}>
