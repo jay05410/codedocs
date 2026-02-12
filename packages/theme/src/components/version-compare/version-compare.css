@@ -1,0 +1,277 @@
+/* Version Compare Styles */
+
+.codedocs-version-compare {
+  border: 1px solid var(--codedocs-border);
+  border-radius: var(--codedocs-radius-lg);
+  overflow: hidden;
+  margin: var(--codedocs-spacing-lg) 0;
+  background: var(--codedocs-bg);
+}
+
+/* Header */
+.vc-header {
+  padding: var(--codedocs-spacing-md) var(--codedocs-spacing-lg);
+  background: var(--codedocs-bg-secondary);
+  border-bottom: 1px solid var(--codedocs-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--codedocs-spacing-sm);
+}
+
+.vc-title {
+  margin: 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: var(--codedocs-spacing-sm);
+}
+
+.vc-version {
+  padding: 2px 10px;
+  background: var(--codedocs-primary);
+  color: #fff;
+  border-radius: var(--codedocs-radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vc-arrow {
+  color: var(--codedocs-text-muted);
+  font-size: 16px;
+}
+
+.vc-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vc-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vc-badge-added { background: rgba(52, 199, 89, 0.15); color: #34c759; }
+.vc-badge-removed { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
+.vc-badge-modified { background: rgba(255, 204, 0, 0.15); color: #cc8800; }
+.vc-badge-breaking { background: rgba(255, 59, 48, 0.2); color: #ff3b30; font-weight: 700; }
+
+/* Breaking Changes */
+.vc-breaking {
+  border-bottom: 1px solid var(--codedocs-border);
+  background: rgba(255, 59, 48, 0.04);
+}
+
+.vc-breaking-title {
+  margin: 0;
+  padding: var(--codedocs-spacing-sm) var(--codedocs-spacing-lg);
+  font-size: 14px;
+  color: #ff3b30;
+  border-bottom: 1px solid var(--codedocs-border-light);
+}
+
+.vc-breaking-list {
+  padding: var(--codedocs-spacing-sm) var(--codedocs-spacing-lg);
+}
+
+.vc-breaking-item {
+  display: flex;
+  align-items: center;
+  gap: var(--codedocs-spacing-sm);
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--codedocs-border-light);
+}
+
+.vc-breaking-item:last-child { border-bottom: none; }
+
+.vc-breaking-severity {
+  padding: 1px 6px;
+  border-radius: var(--codedocs-radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.vc-severity-critical .vc-breaking-severity { background: #ff3b30; }
+.vc-severity-warning .vc-breaking-severity { background: #ff9500; }
+
+.vc-breaking-category {
+  color: var(--codedocs-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.vc-breaking-name { font-weight: 600; }
+.vc-breaking-reason { color: var(--codedocs-text-secondary); }
+
+/* Sections */
+.vc-section {
+  border-bottom: 1px solid var(--codedocs-border-light);
+}
+
+.vc-section:last-child { border-bottom: none; }
+
+.vc-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--codedocs-spacing-sm) var(--codedocs-spacing-lg);
+  background: var(--codedocs-bg-secondary);
+}
+
+.vc-clickable { cursor: pointer; }
+.vc-clickable:hover { background: var(--codedocs-bg); }
+
+.vc-section-title {
+  margin: 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vc-chevron {
+  font-size: 10px;
+  transition: transform 0.2s;
+  color: var(--codedocs-text-muted);
+}
+
+.vc-chevron.expanded { transform: rotate(90deg); }
+
+.vc-section-stats {
+  display: flex;
+  gap: 8px;
+}
+
+.vc-stat {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vc-stat-added { color: #34c759; }
+.vc-stat-removed { color: #ff3b30; }
+.vc-stat-modified { color: #cc8800; }
+
+/* Items */
+.vc-section-body {
+  padding: 0;
+}
+
+.vc-item {
+  border-bottom: 1px solid var(--codedocs-border-light);
+}
+
+.vc-item:last-child { border-bottom: none; }
+
+.vc-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--codedocs-spacing-sm);
+  padding: 8px var(--codedocs-spacing-lg);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.vc-item-header:hover { background: var(--codedocs-bg-secondary); }
+
+.vc-item-added { border-left: 3px solid #34c759; }
+.vc-item-removed { border-left: 3px solid #ff3b30; }
+.vc-item-modified { border-left: 3px solid #ffcc00; }
+.vc-item-unchanged { border-left: 3px solid var(--codedocs-border); }
+
+.vc-item-name { font-weight: 600; flex: 1; }
+
+.vc-item-category {
+  color: var(--codedocs-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.vc-item-chevron {
+  font-size: 10px;
+  transition: transform 0.2s;
+  color: var(--codedocs-text-muted);
+}
+
+.vc-item-chevron.expanded { transform: rotate(90deg); }
+
+/* Status Badge */
+.vc-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.vc-status-sm { width: 18px; height: 18px; font-size: 10px; }
+
+.vc-status-added { background: #34c759; }
+.vc-status-removed { background: #ff3b30; }
+.vc-status-modified { background: #ffcc00; color: #333; }
+.vc-status-unchanged { background: var(--codedocs-border); }
+
+/* Detail Table */
+.vc-item-details {
+  padding: 0 var(--codedocs-spacing-lg) var(--codedocs-spacing-sm);
+}
+
+.vc-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.vc-detail-table th {
+  text-align: left;
+  padding: 6px 8px;
+  color: var(--codedocs-text-muted);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--codedocs-border);
+}
+
+.vc-detail-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--codedocs-border-light);
+}
+
+.vc-detail-field { font-weight: 500; }
+
+.vc-detail-from code,
+.vc-detail-to code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.vc-detail-from code {
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+}
+
+.vc-detail-to code {
+  background: rgba(52, 199, 89, 0.1);
+  color: #34c759;
+}
+
+.vc-detail-added { background: rgba(52, 199, 89, 0.04); }
+.vc-detail-removed { background: rgba(255, 59, 48, 0.04); }
+.vc-detail-modified { background: rgba(255, 204, 0, 0.04); }
+
+.vc-empty {
+  color: var(--codedocs-text-muted);
+  font-style: italic;
+}

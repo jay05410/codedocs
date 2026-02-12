@@ -34,6 +34,8 @@ export { MarkdownGenerator, generateFrontmatter, generateMetaTags } from './gene
 export { SidebarGenerator } from './generator/sidebar.js';
 export type { ChangeEntry, ReleaseNote, AIProvider } from './changelog/index.js';
 export { compareAnalysisResults, generateReleaseNote, formatReleaseNote } from './changelog/index.js';
+export { generateVersionComparison, formatVersionComparisonMarkdown } from './changelog/version-compare.js';
+export type { VersionComparison, ComparisonSummary, BreakingChange, EndpointDiff, EntityDiff, TypeDiff, ServiceDiff } from './changelog/version-compare.js';
 export type { Locale, I18nStrings } from './i18n/index.js';
 export { getStrings, getSupportedLocales } from './i18n/index.js';
 export type { PromptTemplate } from './ai/prompts/index.js';
