@@ -100,7 +100,14 @@ export class SemanticSearch {
       candidates = candidates.filter((d) => d.tags?.some((t) => tags.includes(t)));
     }
 
-    // Score by TF-IDF
+    // Get query embedding if available
+    const hasEmbeddings = this.index.embeddings.size > 0 && this.embeddingProvider;
+    let queryEmbedding: number[] | null = null;
+    if (hasEmbeddings && this.embeddingProvider) {
+      queryEmbedding = await this.embeddingProvider.embed(query);
+    }
+
+    // Score by TF-IDF and embeddings
     let results = candidates.map((doc) => {
       const tfidfScore = computeTfidfSimilarity(
         query,
@@ -114,12 +121,14 @@ export class SemanticSearch {
 
       // Embedding similarity
       let embeddingScore = 0;
-      if (this.index!.embeddings.size > 0) {
-        // Use pre-computed embeddings for scoring boost
-        embeddingScore = 0; // Will be computed on demand if provider available
+      if (queryEmbedding && this.index!.embeddings.has(doc.id)) {
+        const docEmbedding = this.index!.embeddings.get(doc.id)!;
+        embeddingScore = cosineSimilarity(queryEmbedding, docEmbedding);
       }
 
-      const score = tfidfScore * 0.7 + titleBoost * 0.3 + embeddingScore * 0.0;
+      const score = hasEmbeddings
+        ? tfidfScore * 0.5 + titleBoost * 0.2 + embeddingScore * 0.3
+        : tfidfScore * 0.7 + titleBoost * 0.3;
       const highlights = extractHighlights(query, doc);
 
       return { document: doc, score, highlights };

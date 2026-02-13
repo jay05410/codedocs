@@ -306,12 +306,16 @@ export class DiagramGenerator {
       edgeCount++;
     }
 
-    // Edges: Controllers -> Services
+    // Edges: Controllers -> Services (deduplicated)
+    const addedEdges = new Set<string>();
     for (const ep of this.analysis.endpoints) {
       if (ep.serviceRef) {
-        const key = `${sanitizeId(ep.handlerClass)}->${sanitizeId(ep.serviceRef)}`;
-        lines.push(`    ${sanitizeId(ep.handlerClass)} --> ${sanitizeId(ep.serviceRef)}`);
-        edgeCount++;
+        const edgeKey = `${sanitizeId(ep.handlerClass)}->${sanitizeId(ep.serviceRef)}`;
+        if (!addedEdges.has(edgeKey)) {
+          lines.push(`    ${sanitizeId(ep.handlerClass)} --> ${sanitizeId(ep.serviceRef)}`);
+          addedEdges.add(edgeKey);
+          edgeCount++;
+        }
       }
     }
 

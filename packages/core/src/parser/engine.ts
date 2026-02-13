@@ -17,14 +17,60 @@ export class ParserEngine {
     const results: ParseResult[] = [];
     const errors: Array<{ parser: string; error: string; files: string[] }> = [];
 
+    // Load cache if provided
+    if (cache) {
+      await cache.loadCache();
+    }
+
     // Run each parser on matching files
     for (const parser of this.parsers) {
       const matchedFiles = this.matchFiles(files, parser.filePattern);
       if (matchedFiles.length > 0) {
         try {
-          this.logger.debug(`Running parser "${parser.name}" on ${matchedFiles.length} files`);
-          const result = await parser.parse(matchedFiles);
-          results.push(result);
+          // Check cache for each matched file
+          let filesToParse = matchedFiles;
+          let cachedResults: ParseResult[] = [];
+
+          if (cache) {
+            const uncachedFiles: SourceFile[] = [];
+            const cachedFileResults: ParseResult[] = [];
+
+            for (const file of matchedFiles) {
+              if (cache.isFileChanged(file.path, file.content)) {
+                uncachedFiles.push(file);
+              } else {
+                const cachedResult = cache.getCachedResult(file.path);
+                if (cachedResult) {
+                  cachedFileResults.push(cachedResult);
+                  this.logger.debug(`Using cached result for "${file.path}"`);
+                } else {
+                  uncachedFiles.push(file);
+                }
+              }
+            }
+
+            filesToParse = uncachedFiles;
+            cachedResults = cachedFileResults;
+          }
+
+          // Parse only uncached files
+          if (filesToParse.length > 0) {
+            this.logger.debug(`Running parser "${parser.name}" on ${filesToParse.length} files`);
+            const result = await parser.parse(filesToParse);
+            results.push(result);
+
+            // Cache the result for each parsed file
+            if (cache) {
+              for (const file of filesToParse) {
+                cache.setCachedResult(file.path, file.content, result);
+              }
+            }
+          }
+
+          // Add cached results
+          if (cachedResults.length > 0) {
+            results.push(...cachedResults);
+          }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
           this.logger.error(
@@ -39,6 +85,11 @@ export class ParserEngine {
           // Continue processing other parsers
         }
       }
+    }
+
+    // Save cache if provided
+    if (cache) {
+      await cache.saveCache();
     }
 
     // Merge all results

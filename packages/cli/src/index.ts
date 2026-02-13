@@ -6,6 +6,7 @@ import { generateCommand } from './commands/generate.js';
 import { buildCommand } from './commands/build.js';
 import { serveCommand } from './commands/serve.js';
 import { devCommand } from './commands/dev.js';
+import { changelogCommand } from './commands/changelog.js';
 import { initLocale } from './i18n.js';
 
 // Initialize locale from env
@@ -23,6 +24,7 @@ program.addCommand(generateCommand);
 program.addCommand(buildCommand);
 program.addCommand(serveCommand);
 program.addCommand(devCommand);
+program.addCommand(changelogCommand);
 
 export function run() {
   program.parse();
