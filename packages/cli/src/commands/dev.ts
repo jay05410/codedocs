@@ -1,11 +1,12 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { spawn, type ChildProcess } from 'child_process';
+import { spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { loadConfig } from '@codedocs/core';
 import { getCliStrings, t, initLocale } from '../i18n.js';
+import { runSubprocess } from '../utils/run-subprocess.js';
 
 export const devCommand = new Command('dev')
   .description('Start development mode with source watching and hot reload')
@@ -35,8 +36,8 @@ export const devCommand = new Command('dev')
 
       // Step 1: Initial analyze + generate if docs don't exist
       if (!existsSync(docsPath)) {
-        await runStep('analyze', ['analyze', '-c', options.config], strings);
-        await runStep('generate', ['generate', '-c', options.config], strings);
+        await runSubprocess('analyze', ['analyze', '-c', options.config], { quiet: false });
+        await runSubprocess('generate', ['generate', '-c', options.config], { quiet: false });
       }
 
       // Step 2: Start Vite dev server in background
@@ -46,13 +47,22 @@ export const devCommand = new Command('dev')
       if (options.open) viteArgs.push('--open');
 
       const viteProcess = spawn('npx', viteArgs, {
-        stdio: 'inherit',
+        stdio: ['inherit', 'pipe', 'inherit'],
         shell: true,
       });
 
-      console.log(chalk.green(`\n✓ ${strings.serverStarted || 'Server started'}\n`));
-      console.log(chalk.cyan(strings.localServer || 'Local server:'));
-      console.log(chalk.dim(`  http://${options.host || 'localhost'}:${options.port || '3000'}\n`));
+      let serverMessageShown = false;
+      viteProcess.stdout?.on('data', (data) => {
+        const output = data.toString();
+        process.stdout.write(output);
+
+        if (!serverMessageShown && (output.includes('ready') || output.includes('Local:'))) {
+          serverMessageShown = true;
+          console.log(chalk.green(`\n✓ ${strings.serverStarted || 'Server started'}\n`));
+          console.log(chalk.cyan(strings.localServer || 'Local server:'));
+          console.log(chalk.dim(`  http://${options.host || 'localhost'}:${options.port || '3000'}\n`));
+        }
+      });
 
       // Step 3: Watch source files for changes
       let debounceTimer: ReturnType<typeof setTimeout>;
@@ -75,8 +85,8 @@ export const devCommand = new Command('dev')
             console.log(chalk.dim(strings.reanalyzing || 'Re-analyzing and regenerating...'));
 
             try {
-              await runStep('analyze', ['analyze', '-c', options.config], strings, true);
-              await runStep('generate', ['generate', '-c', options.config], strings, true);
+              await runSubprocess('analyze', ['analyze', '-c', options.config], { quiet: true });
+              await runSubprocess('generate', ['generate', '-c', options.config], { quiet: true });
               console.log(chalk.green(`✓ ${strings.hotReloadActive || 'Hot reload active'}\n`));
             } catch (err) {
               console.error(chalk.red('Rebuild failed:'), (err as Error).message);
@@ -100,8 +110,8 @@ export const devCommand = new Command('dev')
         process.exit(0);
       };
 
-      process.on('SIGINT', shutdown);
-      process.on('SIGTERM', shutdown);
+      process.once('SIGINT', shutdown);
+      process.once('SIGTERM', shutdown);
     } catch (error) {
       console.error(chalk.red(`\n✗ Dev mode failed\n`));
       console.error(chalk.red((error as Error).message));
@@ -109,37 +119,3 @@ export const devCommand = new Command('dev')
     }
   });
 
-async function runStep(
-  name: string,
-  args: string[],
-  strings: any,
-  quiet = false
-): Promise<void> {
-  const spinner = quiet ? null : ora(`Running ${name}...`).start();
-
-  return new Promise((resolve, reject) => {
-    const cmd = spawn('npx', ['codedocs', ...args], {
-      stdio: 'pipe',
-      shell: true,
-    });
-
-    let output = '';
-    cmd.stdout?.on('data', (data) => { output += data.toString(); });
-    cmd.stderr?.on('data', (data) => { output += data.toString(); });
-
-    cmd.on('close', (code) => {
-      if (code === 0) {
-        spinner?.succeed(`${name} complete`);
-        resolve();
-      } else {
-        spinner?.fail(`${name} failed`);
-        reject(new Error(`${name} exited with code ${code}`));
-      }
-    });
-
-    cmd.on('error', (error) => {
-      spinner?.fail(`${name} failed`);
-      reject(error);
-    });
-  });
-}
