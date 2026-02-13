@@ -1,0 +1,20 @@
+image: node:{{#if nodeVersion}}{{nodeVersion}}{{else}}20{{/if}}
+
+pages:
+  stage: deploy
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npx codedocs build
+    - mv dist public
+  artifacts:
+    paths:
+      - public
+  only:
+    - {{branch}}
+  {{#if envVar}}
+  variables:
+    {{envVar}}: \${{{~ '{' }}{{envVar}}{{~ '}' }}}
+  {{/if}}

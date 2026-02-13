@@ -1,0 +1,32 @@
+import { defineConfig } from '@codedocs/core';
+{{#if parser}}
+import { {{parser.importName}} } from '{{parser.package}}';
+{{/if}}
+
+export default defineConfig({
+  source: '{{#if source}}{{source}}{{else}}./src{{/if}}',
+
+  {{#if parser}}
+  parsers: [
+    {{parser.importName}}(),
+  ],
+  {{else}}
+  parsers: [],
+  {{/if}}
+
+  ai: {
+    provider: '{{#if aiProvider}}{{aiProvider}}{{else}}openai{{/if}}',
+    {{#if (eq aiProvider 'openai')}}
+    apiKey: process.env.OPENAI_API_KEY,
+    {{/if}}
+    {{#if (eq aiProvider 'claude')}}
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    {{/if}}
+    {{#if (eq aiProvider 'gemini')}}
+    apiKey: process.env.GOOGLE_API_KEY,
+    {{/if}}
+    {{#if (eq aiProvider 'ollama')}}
+    baseUrl: '{{#if ollamaUrl}}{{ollamaUrl}}{{else}}http://localhost:11434{{/if}}',
+    {{/if}}
+  },
+});

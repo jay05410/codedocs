@@ -1,0 +1,35 @@
+pipeline {
+    agent any
+
+    tools {
+        nodejs '{{#if nodeVersion}}Node{{nodeVersion}}{{else}}Node20{{/if}}'
+    }
+
+    {{#if envVar}}
+    environment {
+        {{envVar}} = credentials('{{envVarCredentialId}}')
+    }
+    {{/if}}
+
+    stages {
+        stage('Install') {
+            steps {
+                sh 'npm ci'
+            }
+        }
+        stage('Build Docs') {
+            steps {
+                sh 'npx codedocs build'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                {{#if isNginx}}
+                sh 'rsync -avz --delete dist/ {{deployPath}}'
+                {{else}}
+                archiveArtifacts artifacts: 'dist/**', fingerprint: true
+                {{/if}}
+            }
+        }
+    }
+}

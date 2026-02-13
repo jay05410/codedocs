@@ -1,0 +1,75 @@
+import { defineConfig } from '@codedocs/core';
+{{#each parsers}}
+import { {{this.importName}} } from '{{this.package}}';
+{{/each}}
+
+export default defineConfig({
+  // Source code to analyze
+  source: '{{#if source}}{{source}}{{else}}./src{{/if}}',
+
+  // Parsers (auto-detected or manually selected)
+  parsers: [
+    {{#each parsers}}
+    {{this.importName}}({{#if this.options}}{{{this.options}}}{{/if}}),
+    {{/each}}
+  ],
+
+  // AI provider for enhanced documentation
+  ai: {
+    provider: '{{#if aiProvider}}{{aiProvider}}{{else}}openai{{/if}}',
+    {{#if aiModel}}
+    model: '{{aiModel}}',
+    {{else}}
+    {{#if (eq aiProvider 'openai')}}
+    model: 'gpt-4-turbo',
+    {{/if}}
+    {{#if (eq aiProvider 'claude')}}
+    model: 'claude-3-5-sonnet-20241022',
+    {{/if}}
+    {{#if (eq aiProvider 'gemini')}}
+    model: 'gemini-2.0-flash-exp',
+    {{/if}}
+    {{#if (eq aiProvider 'ollama')}}
+    model: 'llama3.1',
+    {{/if}}
+    {{/if}}
+    {{#if (eq aiProvider 'openai')}}
+    apiKey: process.env.OPENAI_API_KEY,
+    {{/if}}
+    {{#if (eq aiProvider 'claude')}}
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    {{/if}}
+    {{#if (eq aiProvider 'gemini')}}
+    apiKey: process.env.GOOGLE_API_KEY,
+    {{/if}}
+    {{#if (eq aiProvider 'ollama')}}
+    baseUrl: '{{#if ollamaUrl}}{{ollamaUrl}}{{else}}http://localhost:11434{{/if}}',
+    {{/if}}
+    features: {
+      domainGrouping: true,
+      flowDiagrams: true,
+      codeExplanation: true,
+    },
+  },
+
+  // Documentation structure
+  docs: {
+    title: '{{#if projectName}}{{projectName}}{{else}}My Project{{/if}}',
+    locale: '{{#if locale}}{{locale}}{{else}}en{{/if}}',
+    sections: [
+      { id: 'overview', label: 'Overview', type: 'auto' },
+      { id: 'api', label: 'API', type: 'endpoints' },
+      { id: 'entities', label: 'Data Models', type: 'entities' },
+      { id: 'architecture', label: 'Architecture', type: 'architecture' },
+      { id: 'changelog', label: 'Changelog', type: 'changelog' },
+    ],
+  },
+
+  // Theme customization
+  theme: {
+    preset: '{{#if themePreset}}{{themePreset}}{{else}}default{{/if}}',
+    {{#if primaryColor}}
+    colors: { primary: '{{primaryColor}}' },
+    {{/if}}
+  },
+});
