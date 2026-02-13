@@ -19,29 +19,29 @@ const BACK_VALUE = '__back__';
  */
 const AI_MODELS: Record<string, Array<{ name: string; value: string }>> = {
   openai: [
-    { name: 'GPT-5.2 (recommended) - 400K context', value: 'gpt-5.2' },
-    { name: 'GPT-5 mini - 400K context, budget', value: 'gpt-5-mini' },
-    { name: 'GPT-4o - 128K context, legacy', value: 'gpt-4o' },
+    { name: 'GPT-5.2 (recommended)', value: 'gpt-5.2' },
+    { name: 'GPT-5 mini', value: 'gpt-5-mini' },
+    { name: 'GPT-4o', value: 'gpt-4o' },
   ],
   claude: [
-    { name: 'Claude Sonnet 4.5 (recommended) - 1M context', value: 'claude-sonnet-4-5-20250929' },
-    { name: 'Claude Sonnet 5 - 1M context, latest', value: 'claude-sonnet-5-20260203' },
-    { name: 'Claude Opus 4.6 - 1M context, max quality', value: 'claude-opus-4-6-20260205' },
+    { name: 'Claude Sonnet 4.5 (recommended)', value: 'claude-sonnet-4-5-20250929' },
+    { name: 'Claude Sonnet 5', value: 'claude-sonnet-5-20260203' },
+    { name: 'Claude Opus 4.6', value: 'claude-opus-4-6-20260205' },
   ],
   gemini: [
-    { name: 'Gemini 3 Pro (recommended) - 1M context', value: 'gemini-3-pro' },
-    { name: 'Gemini 3 Flash - 200K context, fast', value: 'gemini-3-flash' },
-    { name: 'Gemini 2.5 Pro - 1M context, stable', value: 'gemini-2.5-pro' },
+    { name: 'Gemini 3 Pro (recommended)', value: 'gemini-3-pro' },
+    { name: 'Gemini 3 Flash', value: 'gemini-3-flash' },
+    { name: 'Gemini 2.5 Pro', value: 'gemini-2.5-pro' },
   ],
   glm: [
     { name: 'GLM-4 Plus (recommended)', value: 'glm-4-plus' },
     { name: 'GLM-4', value: 'glm-4' },
   ],
   ollama: [
-    { name: 'Qwen 3 (recommended) - 128K context', value: 'qwen3' },
-    { name: 'Llama 3.3 - popular, versatile', value: 'llama3.3' },
-    { name: 'DeepSeek Coder v2 - code specialized', value: 'deepseek-coder-v2' },
-    { name: 'Granite 4 - enterprise, tool-calling', value: 'granite4' },
+    { name: 'Qwen 3 (recommended)', value: 'qwen3' },
+    { name: 'Llama 3.3', value: 'llama3.3' },
+    { name: 'DeepSeek Coder v2', value: 'deepseek-coder-v2' },
+    { name: 'Granite 4', value: 'granite4' },
   ],
 };
 
