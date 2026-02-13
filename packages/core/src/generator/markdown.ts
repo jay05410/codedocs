@@ -106,10 +106,10 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
 
 ## ${this.s.overview.quickLinks}
 
-- [${this.s.overview.apiEndpoints}](#endpoints)
-- [${this.s.overview.databaseEntities}](#entities)
-- [${this.s.overview.architectureOverview}](#architecture)
-- [${this.s.overview.changelog}](#changelog)
+- [${this.s.overview.apiEndpoints}](./api/)
+- [${this.s.overview.databaseEntities}](./entities/)
+- [${this.s.overview.architectureOverview}](./architecture.md)
+- [${this.s.overview.changelog}](./changelog.md)
 `;
 
     return {
