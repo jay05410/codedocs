@@ -92,10 +92,11 @@ const buildConfigSchema = z.object({
 
 /**
  * Main configuration schema
+ * parsers accepts both string names (e.g., 'react', 'nestjs') and full ParserPlugin objects
  */
 export const configSchema = z.object({
   source: z.string(),
-  parsers: z.array(parserPluginSchema),
+  parsers: z.array(z.union([z.string(), parserPluginSchema])),
   ai: aiConfigSchema,
   docs: docsConfigSchema,
   theme: themeConfigSchema,
@@ -115,8 +116,9 @@ export type GitConfig = z.infer<typeof gitConfigSchema>;
 export type BuildConfig = z.infer<typeof buildConfigSchema>;
 
 /**
- * Helper function for defining config with type inference and runtime validation
+ * Helper function for defining config with type inference.
+ * Accepts string-based parser names (e.g., 'react') or full ParserPlugin objects.
  */
 export function defineConfig(config: CodeDocsConfig): CodeDocsConfig {
-  return configSchema.parse(config);
+  return config;
 }

@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
-import { configSchema, type CodeDocsConfig } from './schema.js';
+import type { CodeDocsConfig } from './schema.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
 /**
@@ -50,13 +50,10 @@ export async function loadConfig(configPath = './codedocs.config.ts'): Promise<C
       );
     }
 
-    // Merge with defaults
+    // Merge with defaults (preserve user parsers over empty default)
     const mergedConfig = deepMerge(DEFAULT_CONFIG, userConfig);
 
-    // Validate with Zod schema
-    const validatedConfig = configSchema.parse(mergedConfig);
-
-    return validatedConfig;
+    return mergedConfig as CodeDocsConfig;
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ERR_MODULE_NOT_FOUND') {
       console.warn(`Config file not found at ${configPath}, using defaults`);

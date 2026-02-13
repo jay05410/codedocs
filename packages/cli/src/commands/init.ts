@@ -6,8 +6,9 @@ import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, join, basename } from 'path';
 import Handlebars from 'handlebars';
 import { detectStack, formatDetectionResult } from '../detect.js';
-import type { DetectedStack, SuggestedParser } from '../detect.js';
+import type { DetectedStack } from '../detect.js';
 import { getCliStrings, t, initLocale } from '../i18n.js';
+import { packageToParserName } from '../parser-registry.js';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -47,37 +48,20 @@ const AI_MODELS: Record<string, Array<{ name: string; value: string }>> = {
 
 /** All available parsers */
 const ALL_PARSERS = [
-  { pkg: '@codedocs/parser-kotlin-spring', label: 'Kotlin + Spring Boot' },
-  { pkg: '@codedocs/parser-java-spring', label: 'Java + Spring Boot' },
-  { pkg: '@codedocs/parser-typescript-nestjs', label: 'TypeScript + NestJS' },
-  { pkg: '@codedocs/parser-python-fastapi', label: 'Python + FastAPI' },
-  { pkg: '@codedocs/parser-php', label: 'PHP (Laravel / Symfony)' },
-  { pkg: '@codedocs/parser-openapi', label: 'OpenAPI / Swagger' },
-  { pkg: '@codedocs/parser-go', label: 'Go (Gin / Echo / Fiber)' },
+  { pkg: '@codedocs/parser-react', label: 'React' },
+  { pkg: '@codedocs/parser-vue', label: 'Vue' },
+  { pkg: '@codedocs/parser-svelte', label: 'Svelte' },
+  { pkg: '@codedocs/parser-typescript-nestjs', label: 'NestJS' },
+  { pkg: '@codedocs/parser-kotlin-spring', label: 'Kotlin Spring Boot' },
+  { pkg: '@codedocs/parser-java-spring', label: 'Java Spring Boot' },
+  { pkg: '@codedocs/parser-python-fastapi', label: 'Python FastAPI' },
+  { pkg: '@codedocs/parser-php', label: 'PHP' },
+  { pkg: '@codedocs/parser-go', label: 'Go' },
   { pkg: '@codedocs/parser-c', label: 'C' },
   { pkg: '@codedocs/parser-cpp', label: 'C++' },
-  { pkg: '@codedocs/parser-graphql', label: 'GraphQL SDL' },
-  { pkg: '@codedocs/parser-react', label: 'React / Next.js' },
-  { pkg: '@codedocs/parser-vue', label: 'Vue / Nuxt' },
-  { pkg: '@codedocs/parser-svelte', label: 'Svelte / SvelteKit' },
+  { pkg: '@codedocs/parser-graphql', label: 'GraphQL' },
+  { pkg: '@codedocs/parser-openapi', label: 'OpenAPI / Swagger' },
 ];
-
-/** Parser import/factory info for config file generation */
-const PARSER_INFO: Record<string, SuggestedParser> = {
-  '@codedocs/parser-kotlin-spring': { package: '@codedocs/parser-kotlin-spring', importName: 'kotlinSpringParser', factoryFn: 'kotlinSpringParser', options: { detectFrameworks: true } },
-  '@codedocs/parser-java-spring': { package: '@codedocs/parser-java-spring', importName: 'javaSpringParser', factoryFn: 'javaSpringParser', options: { detectFrameworks: true } },
-  '@codedocs/parser-typescript-nestjs': { package: '@codedocs/parser-typescript-nestjs', importName: 'nestjsParser', factoryFn: 'nestjsParser', options: { detectOrm: true } },
-  '@codedocs/parser-python-fastapi': { package: '@codedocs/parser-python-fastapi', importName: 'fastApiParser', factoryFn: 'fastApiParser', options: { detectOrm: true, detectPydantic: true } },
-  '@codedocs/parser-php': { package: '@codedocs/parser-php', importName: 'phpParser', factoryFn: 'phpParser', options: { detectFrameworks: true } },
-  '@codedocs/parser-openapi': { package: '@codedocs/parser-openapi', importName: 'openApiParser', factoryFn: 'openApiParser', options: { parseSchemas: true } },
-  '@codedocs/parser-go': { package: '@codedocs/parser-go', importName: 'goParser', factoryFn: 'goParser', options: { detectFrameworks: true } },
-  '@codedocs/parser-c': { package: '@codedocs/parser-c', importName: 'cParser', factoryFn: 'cParser' },
-  '@codedocs/parser-cpp': { package: '@codedocs/parser-cpp', importName: 'cppParser', factoryFn: 'cppParser' },
-  '@codedocs/parser-graphql': { package: '@codedocs/parser-graphql', importName: 'graphqlParser', factoryFn: 'graphqlParser', options: { parseSchemas: true } },
-  '@codedocs/parser-react': { package: '@codedocs/parser-react', importName: 'reactParser', factoryFn: 'reactParser', options: { detectRoutes: true } },
-  '@codedocs/parser-vue': { package: '@codedocs/parser-vue', importName: 'vueParser', factoryFn: 'vueParser', options: { detectRoutes: true } },
-  '@codedocs/parser-svelte': { package: '@codedocs/parser-svelte', importName: 'svelteParser', factoryFn: 'svelteParser', options: { detectRoutes: true } },
-};
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -187,7 +171,6 @@ async function runWizard(detected: DetectedStack, targetDir: string): Promise<In
 
         if (primaryLang !== 'Auto-detect') {
           langChoices.push({ name: `${primaryLang} ${chalk.green('\u2605 recommended')}`, value: primaryLang });
-          langChoices.push(new inquirer.Separator(chalk.dim('── Other languages ──')));
           for (const lang of allLangs) {
             if (lang !== primaryLang) langChoices.push(lang);
           }
@@ -215,9 +198,7 @@ async function runWizard(detected: DetectedStack, targetDir: string): Promise<In
         const choices: any[] = [];
 
         if (hasRecommendedParsers) {
-          choices.push(new inquirer.Separator(chalk.dim('── Recommended (auto-detected) ──')));
           choices.push(...recommended);
-          choices.push(new inquirer.Separator(chalk.dim('── Other parsers ──')));
           choices.push(...others);
         } else {
           choices.push(...others);
@@ -302,6 +283,7 @@ async function runWizard(detected: DetectedStack, targetDir: string): Promise<In
           type: 'password',
           name: 'value',
           message: `${s.apiKeyPrompt} ${chalk.dim('(leave empty to use environment variable)')}`,
+          mask: '*',
         }]);
         return value || '';
       },
@@ -448,7 +430,7 @@ export const initCommand = new Command('init')
     try {
       // Generate config file
       const configPath = resolve(process.cwd(), 'codedocs.config.ts');
-      const configContent = generateConfigFile(answers, detected);
+      const configContent = generateConfigFile(answers);
       writeFileSync(configPath, configContent, 'utf-8');
 
       // Generate CI/CD if requested
@@ -533,50 +515,33 @@ function getEnvVarName(provider: string): string {
 
 // ─── Config File Generation ─────────────────────────────────────────────────
 
-function generateConfigFile(answers: InitAnswers, detected?: DetectedStack): string {
+function generateConfigFile(answers: InitAnswers): string {
   const selectedParsers = answers.parsers || [];
-  const parserMap = new Map<string, SuggestedParser>();
-  if (detected) {
-    for (const p of detected.suggestedParsers) {
-      parserMap.set(p.package, p);
-    }
-  }
 
-  const parserImports: string[] = [];
-  const parserConfigs: string[] = [];
+  // Convert package names to short registry names
+  const parserNames = selectedParsers
+    .map(pkg => packageToParserName(pkg))
+    .filter((name): name is string => name != null);
 
-  for (const pkg of selectedParsers) {
-    const info = parserMap.get(pkg) || PARSER_INFO[pkg];
-    if (!info) continue;
-    parserImports.push(`import { ${info.importName} } from '${pkg}';`);
-    if (info.options && Object.keys(info.options).length > 0) {
-      const optsStr = Object.entries(info.options).map(([k, v]) => `${k}: ${v}`).join(', ');
-      parserConfigs.push(`    ${info.factoryFn}({ ${optsStr} }),`);
-    } else {
-      parserConfigs.push(`    ${info.factoryFn}(),`);
-    }
-  }
-
-  const importsBlock = [
-    `import { defineConfig } from '@codedocs/core';`,
-    ...parserImports,
-  ].join('\n');
-
-  const parsersBlock = parserConfigs.length > 0
-    ? `\n  // Parsers (auto-detected)\n  parsers: [\n${parserConfigs.join('\n')}\n  ],\n`
+  const parsersLine = parserNames.length > 0
+    ? `\n  // Parsers\n  parsers: [${parserNames.map(n => `'${n}'`).join(', ')}],\n`
     : '';
 
   let aiConfig = '';
   if (answers.aiProvider !== 'none') {
     const envVar = getEnvVarName(answers.aiProvider);
-    const apiKeyLine = answers.aiProvider === 'ollama'
+    const keyLine = answers.aiProvider === 'ollama'
       ? `    baseUrl: process.env.${envVar} || 'http://localhost:11434',`
-      : `    apiKey: process.env.${envVar}${answers.apiKey ? ` || '${answers.apiKey}'` : ''},`;
+      : `    apiKey: process.env.${envVar},`;
 
-    aiConfig = `\n  // AI configuration\n  ai: {\n    provider: '${answers.aiProvider}',\n    model: '${answers.aiModel}',\n${apiKeyLine}\n    features: {\n      domainGrouping: true,\n      flowDiagrams: true,\n      codeExplanation: true,\n      releaseNoteAnalysis: true,\n    },\n  },\n`;
+    aiConfig = `\n  // AI configuration\n  ai: {\n    provider: '${answers.aiProvider}',\n    model: '${answers.aiModel}',\n${keyLine}\n    features: {\n      domainGrouping: true,\n      flowDiagrams: true,\n      codeExplanation: true,\n    },\n  },\n`;
   }
 
-  return `${importsBlock}
+  const basePath = answers.deployTarget === 'github-pages'
+    ? `/${answers.projectName}/`
+    : '/';
+
+  return `import { defineConfig } from '@codedocs/core';
 
 export default defineConfig({
   // Project information
@@ -584,7 +549,7 @@ export default defineConfig({
 
   // Source code paths
   source: '${answers.sourcePath}',
-${parsersBlock}${aiConfig}
+${parsersLine}${aiConfig}
   // Documentation configuration
   docs: {
     title: '${answers.projectName} Documentation',
@@ -607,7 +572,7 @@ ${parsersBlock}${aiConfig}
   // Build configuration
   build: {
     outDir: './dist',
-    base: '/${answers.deployTarget === 'github-pages' ? answers.projectName : ''}/',
+    base: '${basePath}',
   },
 });
 `;

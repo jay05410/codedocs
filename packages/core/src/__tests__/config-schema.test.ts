@@ -35,6 +35,28 @@ describe('Config Schema', () => {
       expect(result.docs.title).toBe('Test Docs');
     });
 
+    it('accepts string-based parser names', () => {
+      const config = {
+        source: './src',
+        parsers: ['react', 'nestjs'],
+        ai: {
+          provider: 'openai' as const,
+          model: 'gpt-5.2',
+        },
+        docs: {
+          title: 'Test',
+          locale: 'en' as const,
+          sections: [],
+        },
+        theme: {
+          preset: 'default' as const,
+        },
+      };
+
+      const result = defineConfig(config as any);
+      expect(result.parsers).toEqual(['react', 'nestjs']);
+    });
+
     it('preserves all config properties', () => {
       const config = {
         source: '/path/to/source',

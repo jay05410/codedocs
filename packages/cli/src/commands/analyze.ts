@@ -7,6 +7,7 @@ import { loadConfig } from '@codedocs/core';
 import { FileReader } from '@codedocs/core';
 import { ParserEngine } from '@codedocs/core';
 import { getCliStrings, t, initLocale } from '../i18n.js';
+import { resolveBuiltinParsers } from '../parser-registry.js';
 
 export const analyzeCommand = new Command('analyze')
   .description('Analyze source code and extract documentation')
@@ -48,8 +49,9 @@ export const analyzeCommand = new Command('analyze')
       spinner.text = t(strings.analyzingFiles, { n: sourceFiles.length });
       console.log(chalk.dim(`  Found ${sourceFiles.length} files to analyze`));
 
-      // Create parser engine with proper type casting
-      const parserEngine = new ParserEngine(config.parsers as any);
+      // Resolve string parser names to actual parser instances
+      const resolvedParsers = await resolveBuiltinParsers(config.parsers as any);
+      const parserEngine = new ParserEngine(resolvedParsers);
 
       // Analyze all files
       const analysisResult = await parserEngine.analyze(sourceFiles);
