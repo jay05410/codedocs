@@ -455,6 +455,6 @@ build: {
 ## 지원 및 문의 / Support
 
 문제가 발생하면:
-1. [GitHub Issues](https://github.com/your-org/codedocs/issues)에 리포트
-2. [문서](https://codedocs.dev) 참조
-3. [Discord 커뮤니티](https://discord.gg/codedocs) 참여
+1. [GitHub Issues](https://github.com/jay05410/codedocs/issues)에 리포트
+2. [문서](https://github.com/jay05410/codedocs) 참조
+3. [GitHub Discussions](https://github.com/jay05410/codedocs/discussions) 참여

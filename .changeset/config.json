@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "your-org/codedocs" }],
+  "changelog": ["@changesets/changelog-github", { "repo": "jay05410/codedocs" }],
   "commit": false,
   "fixed": [],
   "linked": [],
