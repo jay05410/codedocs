@@ -2,13 +2,19 @@ import { readdir, readFile } from 'fs/promises';
 import { join, resolve, extname, basename } from 'path';
 import type { AnalysisResult, EndpointInfo, EntityInfo, ServiceInfo } from '../parser/types.js';
 import type { GeneratorConfig, GeneratedPage, PageMeta, SectionConfig } from './types.js';
+import { getStrings, type Locale } from '../i18n/index.js';
+import type { I18nStrings } from '../i18n/index.js';
 export type { PageMeta } from './types.js';
 
 /**
  * MarkdownGenerator - generates documentation markdown from AnalysisResult
  */
 export class MarkdownGenerator {
-  constructor(private config: GeneratorConfig) {}
+  private s: I18nStrings;
+
+  constructor(private config: GeneratorConfig) {
+    this.s = getStrings(config.locale as Locale);
+  }
 
   /**
    * Main generation entry point
@@ -76,39 +82,39 @@ export class MarkdownGenerator {
   generateOverview(analysis: AnalysisResult): GeneratedPage {
     const { metadata, summary } = analysis;
 
-    const content = `# ${metadata.projectName} API Documentation
+    const content = `# ${metadata.projectName} ${this.s.overview.title}
 
-## Project Overview
+## ${this.s.overview.projectOverview}
 
-- **Version**: ${metadata.version}
-- **Last Updated**: ${new Date(metadata.timestamp).toLocaleString()}
-- **Source Directory**: \`${metadata.sourceDir}\`
+- **${this.s.overview.version}**: ${metadata.version}
+- **${this.s.overview.lastUpdated}**: ${new Date(metadata.timestamp).toLocaleString()}
+- **${this.s.overview.sourceDirectory}**: \`${metadata.sourceDir}\`
 
-## Statistics
+## ${this.s.overview.statistics}
 
-| Category | Count |
+| ${this.s.overview.category} | ${this.s.overview.count} |
 |----------|-------|
-| Total Files | ${summary.totalFiles} |
-| Endpoints | ${summary.endpoints} |
-| Entities | ${summary.entities} |
-| Services | ${summary.services} |
-| Types | ${summary.types} |
+| ${this.s.overview.totalFiles} | ${summary.totalFiles} |
+| ${this.s.overview.endpoints} | ${summary.endpoints} |
+| ${this.s.overview.entities} | ${summary.entities} |
+| ${this.s.overview.services} | ${summary.services} |
+| ${this.s.overview.types} | ${summary.types} |
 
-## Parsers Used
+## ${this.s.overview.parsersUsed}
 
 ${metadata.parsers.map(p => `- ${p}`).join('\n')}
 
-## Quick Links
+## ${this.s.overview.quickLinks}
 
-- [API Endpoints](#endpoints)
-- [Database Entities](#entities)
-- [Architecture Overview](#architecture)
-- [Changelog](#changelog)
+- [${this.s.overview.apiEndpoints}](#endpoints)
+- [${this.s.overview.databaseEntities}](#entities)
+- [${this.s.overview.architectureOverview}](#architecture)
+- [${this.s.overview.changelog}](#changelog)
 `;
 
     return {
       path: 'overview.md',
-      title: 'Overview',
+      title: this.s.common.overview,
       content,
       sidebarPosition: 1,
     };
@@ -176,16 +182,16 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
 
       // Metadata badges
       const badges: string[] = [];
-      if (ep.auth) badges.push('🔒 Auth Required');
-      if (ep.deprecated) badges.push('⚠️ Deprecated');
+      if (ep.auth) badges.push(`🔒 ${this.s.endpoint.authRequired}`);
+      if (ep.deprecated) badges.push(`⚠️ ${this.s.endpoint.deprecated}`);
       if (badges.length > 0) {
         content += `${badges.join(' · ')}\n\n`;
       }
 
       // Parameters table
       if (ep.parameters.length > 0) {
-        content += `### Parameters\n\n`;
-        content += `| Name | Type | Required | Location | Default | Description |\n`;
+        content += `### ${this.s.endpoint.parameters}\n\n`;
+        content += `| ${this.s.endpoint.name} | ${this.s.endpoint.type} | ${this.s.endpoint.required} | ${this.s.endpoint.location} | ${this.s.endpoint.defaultValue} | ${this.s.endpoint.description} |\n`;
         content += `|------|------|----------|----------|---------|-------------|\n`;
 
         ep.parameters.forEach(param => {
@@ -199,20 +205,20 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
       }
 
       // Return type
-      content += `**Return Type**: \`${escapeMd(ep.returnType)}\`\n\n`;
+      content += `**${this.s.endpoint.returnType}**: \`${escapeMd(ep.returnType)}\`\n\n`;
 
       // Service reference
       if (ep.serviceRef) {
-        content += `**Service**: \`${escapeMd(ep.serviceRef)}\`\n\n`;
+        content += `**${this.s.endpoint.service}**: \`${escapeMd(ep.serviceRef)}\`\n\n`;
       }
 
       // Tags
       if (ep.tags && ep.tags.length > 0) {
-        content += `**Tags**: ${ep.tags.map(t => `\`${t}\``).join(', ')}\n\n`;
+        content += `**${this.s.endpoint.tags}**: ${ep.tags.map(t => `\`${t}\``).join(', ')}\n\n`;
       }
 
       // Source file
-      content += `<details>\n<summary>Source</summary>\n\n\`${ep.filePath}\`\n\n</details>\n\n`;
+      content += `<details>\n<summary>${this.s.endpoint.source}</summary>\n\n\`${ep.filePath}\`\n\n</details>\n\n`;
 
       if (idx < sorted.length - 1) {
         content += '---\n\n';
@@ -254,12 +260,12 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
     }
 
     // Entity metadata
-    content += `**Table Name**: \`${entity.tableName}\`  \n`;
-    content += `**Database Type**: ${entity.dbType}\n\n`;
+    content += `**${this.s.entity.tableName}**: \`${entity.tableName}\`  \n`;
+    content += `**${this.s.entity.databaseType}**: ${entity.dbType}\n\n`;
 
     // Columns table
-    content += `## Columns\n\n`;
-    content += `| Column | Type | DB Name | Nullable | Primary | Unique | Default | Description |\n`;
+    content += `## ${this.s.entity.columns}\n\n`;
+    content += `| ${this.s.entity.column} | ${this.s.endpoint.type} | ${this.s.entity.dbName} | ${this.s.entity.nullable} | ${this.s.entity.primary} | ${this.s.entity.unique} | ${this.s.endpoint.defaultValue} | ${this.s.endpoint.description} |\n`;
     content += `|--------|------|---------|----------|---------|--------|---------|-------------|\n`;
 
     entity.columns.forEach(col => {
@@ -274,8 +280,8 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
 
     // Relations
     if (entity.relations.length > 0) {
-      content += `## Relations\n\n`;
-      content += `| Type | Target | Join Column | Mapped By | Eager |\n`;
+      content += `## ${this.s.entity.relations}\n\n`;
+      content += `| ${this.s.endpoint.type} | ${this.s.entity.target} | ${this.s.entity.joinColumn} | ${this.s.entity.mappedBy} | ${this.s.entity.eager} |\n`;
       content += `|------|--------|-------------|-----------|-------|\n`;
 
       entity.relations.forEach(rel => {
@@ -287,7 +293,7 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
       content += '\n';
 
       // Generate ER diagram with mermaid
-      content += `### Entity Relationship Diagram\n\n`;
+      content += `### ${this.s.entity.erDiagram}\n\n`;
       content += '```mermaid\nerDiagram\n';
       content += `    ${entity.name} {\n`;
       entity.columns.forEach(col => {
@@ -305,7 +311,7 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
 
     // Indexes
     if (entity.indexes.length > 0) {
-      content += `## Indexes\n\n`;
+      content += `## ${this.s.entity.indexes}\n\n`;
       entity.indexes.forEach(idx => {
         content += `- \`${idx}\`\n`;
       });
@@ -313,7 +319,7 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
     }
 
     // Source file
-    content += `<details>\n<summary>Source</summary>\n\n\`${entity.filePath}\`\n\n</details>\n`;
+    content += `<details>\n<summary>${this.s.endpoint.source}</summary>\n\n\`${entity.filePath}\`\n\n</details>\n`;
 
     return content;
   }
@@ -335,16 +341,16 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
    * Generate architecture overview page with dependency graph
    */
   generateArchitecturePage(analysis: AnalysisResult): GeneratedPage {
-    let content = `# Architecture Overview\n\n`;
+    let content = `# ${this.s.architecture.title}\n\n`;
 
     // Service summary
-    content += `## Services\n\n`;
+    content += `## ${this.s.architecture.services}\n\n`;
     if (analysis.services.length > 0) {
-      content += `Total services: ${analysis.services.length}\n\n`;
+      content += `${this.s.architecture.totalServices}: ${analysis.services.length}\n\n`;
 
       // Service → Entity mapping
-      content += `### Service Dependencies\n\n`;
-      content += `| Service | Dependencies | Methods |\n`;
+      content += `### ${this.s.architecture.serviceDependencies}\n\n`;
+      content += `| ${this.s.architecture.services} | ${this.s.architecture.dependencies} | ${this.s.architecture.methods} |\n`;
       content += `|---------|--------------|----------|\n`;
 
       analysis.services.forEach(svc => {
@@ -357,7 +363,7 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
 
     // Dependency graph
     if (analysis.dependencies.length > 0) {
-      content += `## Dependency Graph\n\n`;
+      content += `## ${this.s.architecture.dependencyGraph}\n\n`;
       content += '```mermaid\nflowchart TD\n';
 
       const nodes = new Set<string>();
@@ -385,17 +391,17 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
     }
 
     // Module statistics
-    content += `## Module Statistics\n\n`;
-    content += `| Category | Count |\n`;
+    content += `## ${this.s.architecture.moduleStatistics}\n\n`;
+    content += `| ${this.s.overview.category} | ${this.s.overview.count} |\n`;
     content += `|----------|-------|\n`;
-    content += `| Services | ${analysis.services.length} |\n`;
-    content += `| Entities | ${analysis.entities.length} |\n`;
-    content += `| Types | ${analysis.types.length} |\n`;
-    content += `| Dependencies | ${analysis.dependencies.length} |\n`;
+    content += `| ${this.s.overview.services} | ${analysis.services.length} |\n`;
+    content += `| ${this.s.overview.entities} | ${analysis.entities.length} |\n`;
+    content += `| ${this.s.overview.types} | ${analysis.types.length} |\n`;
+    content += `| ${this.s.architecture.dependencies} | ${analysis.dependencies.length} |\n`;
 
     return {
       path: 'architecture.md',
-      title: 'Architecture',
+      title: this.s.common.architecture,
       content,
       sidebarPosition: 1000,
     };
@@ -469,23 +475,22 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
    * Generate changelog page
    */
   generateChangelogPage(): GeneratedPage {
-    const content = `# Changelog
+    const content = `# ${this.s.changelog.title}
 
 All notable changes to this project will be documented here.
 
-## [Unreleased]
+## [${this.s.changelog.unreleased}]
 
-Changes not yet released.
+${this.s.changelog.unreleasedDesc}
 
-## How to Use
+## ${this.s.changelog.howToUse}
 
-The changelog is automatically generated by comparing analysis snapshots.
-Run \`codedocs changelog\` to update this file.
+${this.s.changelog.howToUseDesc}
 `;
 
     return {
       path: 'changelog.md',
-      title: 'Changelog',
+      title: this.s.changelog.title,
       content,
       sidebarPosition: 9999,
     };
