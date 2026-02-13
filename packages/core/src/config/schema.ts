@@ -5,7 +5,7 @@ import { z } from 'zod';
  */
 const parserPluginSchema = z.object({
   name: z.string(),
-  filePattern: z.string(),
+  filePattern: z.union([z.string(), z.array(z.string())]),
   parse: z.any(), // Functions cannot be validated by Zod
 });
 
@@ -82,6 +82,15 @@ const gitConfigSchema = z.object({
 }).optional();
 
 /**
+ * Zod schema for build configuration
+ */
+const buildConfigSchema = z.object({
+  base: z.string().optional(),
+  outDir: z.string().optional(),
+  prerender: z.boolean().optional(),
+}).optional();
+
+/**
  * Main configuration schema
  */
 export const configSchema = z.object({
@@ -91,6 +100,7 @@ export const configSchema = z.object({
   docs: docsConfigSchema,
   theme: themeConfigSchema,
   git: gitConfigSchema,
+  build: buildConfigSchema,
 });
 
 /**
@@ -102,10 +112,11 @@ export type AIConfig = z.infer<typeof aiConfigSchema>;
 export type DocsConfig = z.infer<typeof docsConfigSchema>;
 export type ThemeConfig = z.infer<typeof themeConfigSchema>;
 export type GitConfig = z.infer<typeof gitConfigSchema>;
+export type BuildConfig = z.infer<typeof buildConfigSchema>;
 
 /**
- * Helper function for defining config with type inference
+ * Helper function for defining config with type inference and runtime validation
  */
 export function defineConfig(config: CodeDocsConfig): CodeDocsConfig {
-  return config;
+  return configSchema.parse(config);
 }

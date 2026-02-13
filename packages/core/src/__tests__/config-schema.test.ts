@@ -30,7 +30,7 @@ describe('Config Schema', () => {
       };
 
       const result = defineConfig(config);
-      expect(result).toBe(config);
+      expect(result).toEqual(config);
       expect(result.source).toBe('./src');
       expect(result.docs.title).toBe('Test Docs');
     });
