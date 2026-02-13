@@ -1,178 +1,99 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
-import { spawn } from 'child_process';
-import { existsSync } from 'fs';
-import { resolve } from 'path';
-import { loadConfig } from '@codedocs/core';
-import { getCliStrings, t, initLocale } from '../i18n.js';
+import { existsSync, readFileSync, statSync } from 'fs';
+import { resolve, join, extname } from 'path';
+import { createServer } from 'http';
+import { exec } from 'child_process';
+
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html',
+  '.css': 'text/css',
+  '.js': 'application/javascript',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.map': 'application/json',
+};
 
 export const serveCommand = new Command('serve')
-  .description('Start development server with hot reload')
-  .option('-c, --config <path>', 'Path to config file', 'codedocs.config.ts')
-  .option('-p, --port <number>', 'Port number', '3000')
-  .option('--host <host>', 'Host address', 'localhost')
-  .option('--skip-analyze', 'Skip analysis step')
-  .option('--skip-generate', 'Skip generation step')
+  .description('Start static file server for built documentation')
+  .option('-p, --port <number>', 'Port number', '4321')
+  .option('-d, --dir <path>', 'Directory to serve', './dist')
   .option('--open', 'Open browser automatically')
   .action(async (options) => {
-    const s = getCliStrings().cli;
-    console.log(chalk.bold.cyan(`\n📡 ${s.serverTitle}\n`));
+    const port = parseInt(options.port, 10);
+    const dir = resolve(process.cwd(), options.dir);
 
-    try {
-      // Load config
-      const configPath = resolve(process.cwd(), options.config);
-      if (!existsSync(configPath)) {
-        console.error(chalk.red(`${s.configNotFound}: ${options.config}\n`));
-        process.exit(1);
-      }
-
-      const config = await loadConfig(configPath);
-      initLocale(config.docs?.locale);
-      const strings = getCliStrings().cli;
-
-      // Check if docs need to be generated
-      const docsDir = './docs-output';
-      const docsPath = resolve(process.cwd(), docsDir);
-      const needsGeneration = !existsSync(docsPath);
-
-      // Step 1: Analyze if needed
-      if (!options.skipAnalyze && needsGeneration) {
-        await runAnalyze(options.config, strings);
-      }
-
-      // Step 2: Generate if needed
-      if (!options.skipGenerate && needsGeneration) {
-        await runGenerate(options.config, strings);
-      }
-
-      // Step 3: Start Vite dev server
-      console.log(chalk.cyan(strings.startingVite + '\n'));
-      await startViteServer(options, strings);
-    } catch (error) {
-      console.error(chalk.red(`\n✗ ${getCliStrings().cli.serverFailed}\n`));
-      console.error(chalk.red((error as Error).message));
+    // Check if directory exists
+    if (!existsSync(dir)) {
+      console.error(chalk.red(`Directory not found: ${dir}. Run 'codedocs build' first.`));
       process.exit(1);
     }
-  });
 
-async function runAnalyze(configPath: string, strings: any): Promise<void> {
-  const spinner = ora(strings.analyzingSource).start();
+    // Create HTTP server
+    const server = createServer((req, res) => {
+      let filePath = join(dir, req.url || '/');
 
-  return new Promise((resolve, reject) => {
-    const cmd = spawn(
-      'npx',
-      ['codedocs', 'analyze', '-c', configPath],
-      { stdio: 'pipe', shell: true }
-    );
+      // Handle directory requests
+      if (existsSync(filePath) && statSync(filePath).isDirectory()) {
+        filePath = join(filePath, 'index.html');
+      }
 
-    let output = '';
-    cmd.stdout?.on('data', (data) => {
-      output += data.toString();
-    });
-    cmd.stderr?.on('data', (data) => {
-      output += data.toString();
-    });
+      // Serve file
+      if (existsSync(filePath) && statSync(filePath).isFile()) {
+        try {
+          const content = readFileSync(filePath);
+          const ext = extname(filePath);
+          const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
 
-    cmd.on('close', (code) => {
-      if (code === 0) {
-        spinner.succeed(strings.analysisComplete);
-        resolve();
-      } else {
-        spinner.fail(strings.analysisFailed);
-        if (output) {
-          console.error(chalk.red(output));
+          res.writeHead(200, { 'Content-Type': mimeType });
+          res.end(content);
+        } catch (error) {
+          res.writeHead(500);
+          res.end('Internal Server Error');
         }
-        reject(new Error(`Analysis exited with code ${code}`));
+      } else {
+        res.writeHead(404);
+        res.end('Not Found');
       }
     });
 
-    cmd.on('error', (error) => {
-      spinner.fail(strings.analysisFailed);
-      reject(error);
-    });
-  });
-}
+    server.listen(port, () => {
+      const url = `http://localhost:${port}`;
+      console.log(chalk.green(`\n✓ Server started\n`));
+      console.log(chalk.cyan(`  ${url}\n`));
+      console.log(chalk.dim(`Press Ctrl+C to stop\n`));
 
-async function runGenerate(configPath: string, strings: any): Promise<void> {
-  const spinner = ora(strings.generatingDocumentation).start();
+      // Open browser if requested
+      if (options.open) {
+        const command = process.platform === 'win32'
+          ? `start ${url}`
+          : process.platform === 'darwin'
+          ? `open ${url}`
+          : `xdg-open ${url}`;
 
-  return new Promise((resolve, reject) => {
-    const cmd = spawn(
-      'npx',
-      ['codedocs', 'generate', '-c', configPath],
-      { stdio: 'pipe', shell: true }
-    );
-
-    let output = '';
-    cmd.stdout?.on('data', (data) => {
-      output += data.toString();
-    });
-    cmd.stderr?.on('data', (data) => {
-      output += data.toString();
-    });
-
-    cmd.on('close', (code) => {
-      if (code === 0) {
-        spinner.succeed(strings.generationComplete);
-        resolve();
-      } else {
-        spinner.fail(strings.generationFailed);
-        if (output) {
-          console.error(chalk.red(output));
-        }
-        reject(new Error(`Generation exited with code ${code}`));
+        exec(command, (error) => {
+          if (error) {
+            console.error(chalk.yellow(`Failed to open browser: ${error.message}`));
+          }
+        });
       }
     });
 
-    cmd.on('error', (error) => {
-      spinner.fail(strings.generationFailed);
-      reject(error);
+    // Handle graceful shutdown
+    process.once('SIGINT', () => {
+      console.log(chalk.yellow('\n\nShutting down...'));
+      server.close(() => process.exit(0));
+    });
+
+    process.once('SIGTERM', () => {
+      server.close(() => process.exit(0));
     });
   });
-}
-
-async function startViteServer(options: any, strings: any): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const args = ['vite', 'dev'];
-
-    if (options.port) {
-      args.push('--port', options.port);
-    }
-
-    if (options.host) {
-      args.push('--host', options.host);
-    }
-
-    if (options.open) {
-      args.push('--open');
-    }
-
-    const cmd = spawn('npx', args, {
-      stdio: 'inherit',
-      shell: true,
-    });
-
-    // Print server info
-    console.log(chalk.green(`✓ ${strings.serverStarted}\n`));
-    console.log(chalk.cyan(strings.localServer));
-    console.log(chalk.dim(`  http://${options.host || 'localhost'}:${options.port || '3000'}\n`));
-    console.log(chalk.dim(strings.pressCtrlC + '\n'));
-
-    cmd.on('error', (error) => {
-      reject(error);
-    });
-
-    // Handle Ctrl+C
-    process.on('SIGINT', () => {
-      console.log(chalk.yellow(`\n\n${strings.shuttingDown}`));
-      cmd.kill('SIGINT');
-      process.exit(0);
-    });
-
-    process.on('SIGTERM', () => {
-      cmd.kill('SIGTERM');
-      process.exit(0);
-    });
-  });
-}
