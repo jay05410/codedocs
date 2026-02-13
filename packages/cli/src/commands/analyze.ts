@@ -81,6 +81,7 @@ export const analyzeCommand = new Command('analyze')
           totalExports: analysisResult.endpoints?.length || 0,
           totalFunctions: analysisResult.services?.length || 0,
           totalClasses: analysisResult.entities?.length || 0,
+          totalComponents: analysisResult.types?.length || 0,
         },
         results: [analysisResult],
       };
@@ -98,6 +99,7 @@ export const analyzeCommand = new Command('analyze')
       console.log(chalk.dim(`  ${t(strings.totalExports, { n: analysisData.summary.totalExports })}`));
       console.log(chalk.dim(`  ${t(strings.totalFunctions, { n: analysisData.summary.totalFunctions })}`));
       console.log(chalk.dim(`  ${t(strings.totalClasses, { n: analysisData.summary.totalClasses })}`));
+      console.log(chalk.dim(`  ${t(strings.totalComponents, { n: analysisData.summary.totalComponents })}`));
       console.log(chalk.dim(`\n  ${t(strings.resultsSaved, { path: options.output })}\n`));
 
       if (errorCount > 0) {

@@ -198,6 +198,7 @@ export interface I18nStrings {
     totalExports: string;
     totalFunctions: string;
     totalClasses: string;
+    totalComponents: string;
     resultsSaved: string;
     runVerbose: string;
     analysisFailed: string;
@@ -437,6 +438,7 @@ const en: I18nStrings = {
     totalExports: 'Total exports: {n}',
     totalFunctions: 'Total functions: {n}',
     totalClasses: 'Total classes: {n}',
+    totalComponents: 'Total components: {n}',
     resultsSaved: 'Results saved to: {path}',
     runVerbose: 'Run with --verbose to see detailed error messages',
     analysisFailed: 'Analysis failed',
@@ -666,6 +668,7 @@ const ko: I18nStrings = {
     totalExports: '총 내보내기: {n}',
     totalFunctions: '총 함수: {n}',
     totalClasses: '총 클래스: {n}',
+    totalComponents: '총 컴포넌트: {n}',
     resultsSaved: '결과 저장 위치: {path}',
     runVerbose: '--verbose 옵션으로 자세한 오류 메시지를 확인하세요',
     analysisFailed: '분석 실패',
@@ -895,6 +898,7 @@ const ja: I18nStrings = {
     totalExports: '総エクスポート: {n}',
     totalFunctions: '総関数: {n}',
     totalClasses: '総クラス: {n}',
+    totalComponents: '総コンポーネント: {n}',
     resultsSaved: '結果の保存先: {path}',
     runVerbose: '--verboseで詳細なエラーメッセージを確認できます',
     analysisFailed: '分析失敗',
@@ -1124,6 +1128,7 @@ const zh: I18nStrings = {
     totalExports: '总导出: {n}',
     totalFunctions: '总函数: {n}',
     totalClasses: '总类: {n}',
+    totalComponents: '总组件: {n}',
     resultsSaved: '结果保存至: {path}',
     runVerbose: '使用 --verbose 查看详细错误信息',
     analysisFailed: '分析失败',
