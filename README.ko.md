@@ -9,7 +9,7 @@ AI 기반 코드 문서 자동 생성기. 코드베이스를 분석하고, 아�
 | 셀프 호스팅 | O | X | X | O |
 | 프라이빗 레포 | O | 위험* | X | O |
 | 커스텀 파서 | 플러그인 시스템 | X | X | X |
-| 멀티 LLM | OpenAI, Claude, Gemini, Ollama | 고정 | 고정 | 고정 |
+| 멀티 LLM | OpenAI, Claude, Gemini, GLM, Ollama | 고정 | 고정 | 고정 |
 | 에어갭 환경 | O (Ollama) | X | X | X |
 | 다국어 | 한/영/일/중 | 영어 | 영어 | 영어 |
 | 정적 사이트 출력 | O | X | X | X |
@@ -53,21 +53,18 @@ npm install @codedocs/core @codedocs/cli @codedocs/theme @codedocs/vite-plugin
 
 ```typescript
 import { defineConfig } from '@codedocs/core';
-import { nestjsParser } from '@codedocs/parser-typescript-nestjs';
 
 export default defineConfig({
   // 분석할 소스 코드 경로
   source: './src',
 
-  // 파서 (자동 감지 또는 수동 선택)
-  parsers: [
-    nestjsParser({ detectOrm: true }),
-  ],
+  // 파서 (문자열 이름으로 지정 - 런타임에 자동 해석)
+  parsers: ['react', 'nestjs'],
 
   // AI 프로바이더 설정
   ai: {
     provider: 'openai',        // openai | claude | gemini | glm | ollama
-    model: 'gpt-4-turbo',
+    model: 'gpt-5.2',
     apiKey: process.env.OPENAI_API_KEY,
     features: {
       domainGrouping: true,    // 도메인별 엔드포인트 그룹핑
@@ -122,21 +119,21 @@ codedocs dev --port 3000        # 커스텀 포트 지정
 
 ## 내장 파서
 
-| 파서 | 기술 스택 | 패키지 |
-|------|-----------|--------|
-| Kotlin + Spring Boot | REST, DGS GraphQL, JPA | `@codedocs/parser-kotlin-spring` |
-| Java + Spring Boot | REST, JPA, Hibernate | `@codedocs/parser-java-spring` |
-| TypeScript + NestJS | REST, TypeORM, Prisma | `@codedocs/parser-typescript-nestjs` |
-| Python + FastAPI | REST, SQLAlchemy, Pydantic | `@codedocs/parser-python-fastapi` |
-| PHP + Laravel/Symfony | Laravel, Symfony, Eloquent, Doctrine | `@codedocs/parser-php` |
-| OpenAPI / Swagger | 모든 스택 (스펙 임포트) | `@codedocs/parser-openapi` |
-| Go | Gin, Echo, Fiber, Chi, GORM | `@codedocs/parser-go` |
-| C | 구조체, 함수, 열거형, 매크로, microhttpd | `@codedocs/parser-c` |
-| C++ | 클래스, 템플릿, 네임스페이스, Crow, Pistache, Qt | `@codedocs/parser-cpp` |
-| GraphQL SDL | 스키마 기반 GraphQL | `@codedocs/parser-graphql` |
-| React / Next.js | 컴포넌트, 라우트, 훅 | `@codedocs/parser-react` |
-| Vue / Nuxt | 컴포넌트, 라우트, 컴포저블 | `@codedocs/parser-vue` |
-| Svelte / SvelteKit | 컴포넌트, 라우트, 스토어 | `@codedocs/parser-svelte` |
+| 파서 | 이름 | 기술 스택 | 패키지 |
+|------|------|-----------|--------|
+| React | `react` | 컴포넌트, 훅, Next.js 라우트 | `@codedocs/parser-react` |
+| Vue | `vue` | 컴포넌트, 컴포저블, Nuxt 라우트 | `@codedocs/parser-vue` |
+| Svelte | `svelte` | 컴포넌트, 스토어, SvelteKit 라우트 | `@codedocs/parser-svelte` |
+| NestJS | `nestjs` | REST, GraphQL, TypeORM, Prisma | `@codedocs/parser-typescript-nestjs` |
+| Kotlin Spring Boot | `kotlin-spring` | REST, DGS GraphQL, JPA | `@codedocs/parser-kotlin-spring` |
+| Java Spring Boot | `java-spring` | REST, JPA, Hibernate | `@codedocs/parser-java-spring` |
+| Python FastAPI | `python-fastapi` | REST, SQLAlchemy, Pydantic | `@codedocs/parser-python-fastapi` |
+| PHP | `php` | Laravel, Symfony, Eloquent, Doctrine | `@codedocs/parser-php` |
+| Go | `go` | Gin, Echo, Fiber, Chi, GORM | `@codedocs/parser-go` |
+| C | `c` | 구조체, 함수, 열거형, 매크로 | `@codedocs/parser-c` |
+| C++ | `cpp` | 클래스, 템플릿, 네임스페이스 | `@codedocs/parser-cpp` |
+| GraphQL | `graphql` | 스키마 기반 GraphQL | `@codedocs/parser-graphql` |
+| OpenAPI / Swagger | `openapi` | 모든 스택 (스펙 임포트) | `@codedocs/parser-openapi` |
 
 ## 커스텀 파서
 

@@ -9,7 +9,7 @@ AI-powered code documentation generator. Analyze your codebase, generate beautif
 | Self-hosted | Yes | No | No | Yes |
 | Private repos | Yes | Risk* | No | Yes |
 | Custom parsers | Plugin system | No | No | No |
-| Multi-LLM | OpenAI, Claude, Gemini, Ollama | Fixed | Fixed | Fixed |
+| Multi-LLM | OpenAI, Claude, Gemini, GLM, Ollama | Fixed | Fixed | Fixed |
 | Air-gapped | Yes (Ollama) | No | No | No |
 | i18n | ko/en/ja/zh | English | English | English |
 | Static site output | Yes | No | No | No |
@@ -53,21 +53,18 @@ CodeDocs is configured via `codedocs.config.ts`:
 
 ```typescript
 import { defineConfig } from '@codedocs/core';
-import { nestjsParser } from '@codedocs/parser-typescript-nestjs';
 
 export default defineConfig({
   // Source code to analyze
   source: './src',
 
-  // Parsers (auto-detected or manually selected)
-  parsers: [
-    nestjsParser({ detectOrm: true }),
-  ],
+  // Parsers (use string names - auto-resolved at runtime)
+  parsers: ['react', 'nestjs'],
 
   // AI provider for enhanced documentation
   ai: {
-    provider: 'openai',        // openai | claude | gemini | ollama
-    model: 'gpt-4-turbo',
+    provider: 'openai',        // openai | claude | gemini | glm | ollama
+    model: 'gpt-5.2',
     apiKey: process.env.OPENAI_API_KEY,
     features: {
       domainGrouping: true,
@@ -121,21 +118,21 @@ codedocs dev --port 3000        # Custom port for dev server
 
 ## Built-in Parsers
 
-| Parser | Stack | Package |
-|--------|-------|---------|
-| Kotlin + Spring Boot | REST, DGS GraphQL, JPA | `@codedocs/parser-kotlin-spring` |
-| Java + Spring Boot | REST, JPA, Hibernate | `@codedocs/parser-java-spring` |
-| TypeScript + NestJS | REST, TypeORM, Prisma | `@codedocs/parser-typescript-nestjs` |
-| Python + FastAPI | REST, SQLAlchemy, Pydantic | `@codedocs/parser-python-fastapi` |
-| PHP + Laravel/Symfony | Laravel, Symfony, Slim, CodeIgniter, Eloquent, Doctrine | `@codedocs/parser-php` |
-| OpenAPI / Swagger | Any (spec import) | `@codedocs/parser-openapi` |
-| Go | Gin, Echo, Fiber, Chi, GORM | `@codedocs/parser-go` |
-| C | Structs, functions, enums, macros, microhttpd | `@codedocs/parser-c` |
-| C++ | Classes, templates, namespaces, Crow, Pistache, Qt | `@codedocs/parser-cpp` |
-| GraphQL SDL | Schema-first GraphQL | `@codedocs/parser-graphql` |
-| React / Next.js | Components, routes, hooks | `@codedocs/parser-react` |
-| Vue / Nuxt | Components, routes, composables | `@codedocs/parser-vue` |
-| Svelte / SvelteKit | Components, routes, stores | `@codedocs/parser-svelte` |
+| Parser | Name | Stack | Package |
+|--------|------|-------|---------|
+| React | `react` | Components, hooks, Next.js routes | `@codedocs/parser-react` |
+| Vue | `vue` | Components, composables, Nuxt routes | `@codedocs/parser-vue` |
+| Svelte | `svelte` | Components, stores, SvelteKit routes | `@codedocs/parser-svelte` |
+| NestJS | `nestjs` | REST, GraphQL, TypeORM, Prisma | `@codedocs/parser-typescript-nestjs` |
+| Kotlin Spring Boot | `kotlin-spring` | REST, DGS GraphQL, JPA | `@codedocs/parser-kotlin-spring` |
+| Java Spring Boot | `java-spring` | REST, JPA, Hibernate | `@codedocs/parser-java-spring` |
+| Python FastAPI | `python-fastapi` | REST, SQLAlchemy, Pydantic | `@codedocs/parser-python-fastapi` |
+| PHP | `php` | Laravel, Symfony, Eloquent, Doctrine | `@codedocs/parser-php` |
+| Go | `go` | Gin, Echo, Fiber, Chi, GORM | `@codedocs/parser-go` |
+| C | `c` | Structs, functions, enums, macros | `@codedocs/parser-c` |
+| C++ | `cpp` | Classes, templates, namespaces | `@codedocs/parser-cpp` |
+| GraphQL | `graphql` | Schema-first GraphQL | `@codedocs/parser-graphql` |
+| OpenAPI / Swagger | `openapi` | Any stack (spec import) | `@codedocs/parser-openapi` |
 
 ## Custom Parsers
 
@@ -291,7 +288,7 @@ npm install
 # Build all packages
 npx turbo run build
 
-# Run tests (144 tests)
+# Run tests (217 tests)
 npx vitest run
 
 # Typecheck
