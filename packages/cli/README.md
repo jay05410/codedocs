@@ -153,11 +153,39 @@ codedocs generate --input ./data/analysis.json --output ./documentation
 OPENAI_API_KEY=sk-xxx codedocs generate
 ```
 
-**AI Features** (when configured):
-- Domain-based endpoint grouping
-- Mermaid diagram generation
-- Code explanation and business logic docs
-- Request/response examples
+**AI Features** (when `ai` is configured in `codedocs.config.ts`):
+
+| Feature Flag | What it does | Token cost |
+|---|---|---|
+| `domainGrouping` | Groups endpoints/entities by business domain in sidebar | ~800 tokens |
+| `flowDiagrams` | Generates Mermaid architecture flow diagram | ~500 tokens |
+| `codeExplanation` | Generates request/response examples for API endpoints | ~500/endpoint |
+
+- Prompts are sent in English for token efficiency (~20-30% savings)
+- Responses are returned in the configured `docs.locale`
+- Three-tier fallback: AI → heuristic grouping → static sidebar
+- Total budget: ~9,000 tokens/run (1 grouping + 15 examples + 1 diagram)
+
+**Config example:**
+
+```typescript
+// codedocs.config.ts
+export default {
+  source: './src',
+  ai: {
+    provider: 'openai',    // openai | anthropic | gemini | ollama | glm | custom
+    model: 'gpt-4o-mini',
+    features: {
+      domainGrouping: true,
+      flowDiagrams: true,
+      codeExplanation: true,  // explicit opt-in required
+    },
+  },
+  docs: {
+    locale: 'ko',  // en | ko | ja | zh
+  },
+};
+```
 
 ---
 
@@ -174,6 +202,8 @@ codedocs build
 - `-c, --config <path>` - Path to config file (default: `codedocs.config.ts`)
 - `--skip-analyze` - Skip analysis step (use existing results)
 - `--skip-generate` - Skip generation step (use existing markdown)
+- `--docs-dir <path>` - Input docs directory (default: `./docs-output`)
+- `-o, --output <path>` - Output directory (default: `./dist`)
 - `--verbose` - Show detailed build output
 
 **Examples:**
@@ -188,6 +218,9 @@ codedocs build --skip-analyze
 # Quick rebuild (skip analyze and generate)
 codedocs build --skip-analyze --skip-generate
 
+# Custom output directory
+codedocs build --output ./my-output
+
 # Detailed output
 codedocs build --verbose
 ```
@@ -196,8 +229,7 @@ codedocs build --verbose
 
 1. Analyze source code
 2. Generate markdown documentation
-3. Build static site with Vite
-4. Index with Pagefind for search
+3. Build static HTML site (Marked-based rendering)
 
 **Output:** Production-ready static site in `./dist`
 
@@ -205,7 +237,7 @@ codedocs build --verbose
 
 ### `codedocs serve`
 
-Preview documentation locally.
+Preview built documentation locally with a static file server.
 
 ```bash
 codedocs serve
@@ -228,9 +260,14 @@ codedocs serve --port 3000
 
 # Auto-open browser
 codedocs serve --open
+
+# Serve custom directory
+codedocs serve -d ./my-output
 ```
 
 **URL:** `http://localhost:4321`
+
+**Note:** Run `codedocs build` first to generate the static site.
 
 ---
 
@@ -246,7 +283,8 @@ codedocs dev
 
 - `-c, --config <path>` - Path to config file (default: `codedocs.config.ts`)
 - `-p, --port <port>` - Dev server port (default: `3000`)
-- `--verbose` - Show detailed watch information
+- `--host <host>` - Host address (default: `localhost`)
+- `--open` - Open browser automatically
 
 **Examples:**
 
@@ -254,17 +292,17 @@ codedocs dev
 # Start dev server
 codedocs dev
 
-# Custom port
-codedocs dev --port 8080
+# Custom port and host
+codedocs dev --port 8080 --host 0.0.0.0
 
-# Detailed logs
-codedocs dev --verbose
+# Auto-open browser
+codedocs dev --open
 ```
 
 **Features:**
 - File watching for source code changes
 - Incremental re-analysis
-- Hot Module Replacement (HMR)
+- Auto-rebuild on source changes
 - Live preview
 
 ---
