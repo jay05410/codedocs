@@ -27,7 +27,7 @@ npx codedocs build
 
 # 3. 로컬 미리보기
 npx codedocs serve
-# -> http://localhost:4321
+# -> http://localhost:3000
 ```
 
 ## 설치
@@ -100,7 +100,7 @@ export default {
 | `codedocs init` | 대화형 프로젝트 설정 (자동 스택 감지) |
 | `codedocs analyze` | 소스 코드 분석 및 구조 추출 |
 | `codedocs generate` | 분석 결과로 마크다운 문서 생성 |
-| `codedocs build` | 전체 파이프라인: 분석 + 생성 + Vite SSG 빌드 |
+| `codedocs build` | 전체 파이프라인: 분석 + 생성 + 정적 사이트 빌드 |
 | `codedocs serve` | 문서 로컬 미리보기 |
 | `codedocs dev` | 워치 모드 (자동 재분석 + HMR) |
 | `codedocs changelog` | 변경 이력 생성 및 버전 비교 |
@@ -197,7 +197,7 @@ export default defineConfig({
 
 ### 다국어 지원
 
-문서 UI와 생성된 콘텐츠를 다음 언어로 제공합니다:
+생성되는 문서의 모든 콘텐츠(섹션 제목, 테이블 레이블, 페이지 타이틀)가 `locale` 설정에 따라 번역됩니다:
 - 한국어 (`ko`)
 - 영어 (`en`)
 - 일본어 (`ja`)
@@ -305,7 +305,7 @@ npx turbo run dev
 |------|------|
 | 모노레포 | Turborepo + npm 워크스페이스 |
 | 언어 | TypeScript (strict) |
-| SSG | Vite |
+| SSG | Vite + marked |
 | 마크다운 | unified (remark + rehype) |
 | 코드 하이라이팅 | Shiki |
 | 검색 | Pagefind |

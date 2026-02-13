@@ -27,7 +27,7 @@ npx codedocs build
 
 # 3. Preview locally
 npx codedocs serve
-# -> http://localhost:4321
+# -> http://localhost:3000
 ```
 
 ## Installation
@@ -100,7 +100,7 @@ export default {
 | `codedocs init` | Interactive project setup with auto-detection |
 | `codedocs analyze` | Analyze source code and extract structure |
 | `codedocs generate` | Generate markdown documentation from analysis |
-| `codedocs build` | Full pipeline: analyze + generate + Vite SSG build |
+| `codedocs build` | Full pipeline: analyze + generate + static site build |
 | `codedocs serve` | Preview documentation locally |
 | `codedocs dev` | Watch mode with auto re-analyze and hot reload |
 
@@ -196,7 +196,7 @@ Track breaking changes between versions with automatic diff detection.
 
 ### Multi-Language Support
 
-Documentation UI and generated content available in:
+All generated documentation content (section headers, table labels, page titles) is fully translated based on the `locale` setting. Supported languages:
 - English (`en`)
 - Korean (`ko`)
 - Japanese (`ja`)
@@ -303,7 +303,7 @@ npx turbo run dev
 |------|-----------|
 | Monorepo | Turborepo + npm workspaces |
 | Language | TypeScript (strict) |
-| SSG | Vite |
+| SSG | Vite + marked |
 | Markdown | unified (remark + rehype) |
 | Code Highlighting | Shiki |
 | Search | Pagefind |
