@@ -1,7 +1,7 @@
 // packages/core/src/ai/providers/openai.ts
 // OpenAI provider using native fetch
 
-import type { AiProvider, AiProviderConfig, ChatMessage, ChatOptions } from '../types';
+import type { AiProvider, AiProviderConfig, ChatMessage, ChatOptions } from '../types.js';
 import { logger } from '../../logger.js';
 
 const REQUEST_TIMEOUT = 60000; // 60 seconds
