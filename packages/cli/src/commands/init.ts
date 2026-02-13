@@ -541,9 +541,8 @@ function generateConfigFile(answers: InitAnswers): string {
     ? `/${answers.projectName}/`
     : '/';
 
-  return `import { defineConfig } from '@codedocs/core';
-
-export default defineConfig({
+  return `/** @type {import('@codedocs/core').CodeDocsConfig} */
+export default {
   // Project information
   name: '${answers.projectName}',
 
@@ -574,7 +573,7 @@ ${parsersLine}${aiConfig}
     outDir: './dist',
     base: '${basePath}',
   },
-});
+};
 `;
 }
 

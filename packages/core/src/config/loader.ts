@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import type { CodeDocsConfig } from './schema.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
@@ -39,6 +40,12 @@ export async function loadConfig(configPath = './codedocs.config.ts'): Promise<C
   const absolutePath = resolve(process.cwd(), configPath);
   const fileUrl = pathToFileURL(absolutePath).href;
 
+  // Check if the config file actually exists before attempting import
+  if (!existsSync(absolutePath)) {
+    console.warn(`Config file not found at ${configPath}, using defaults`);
+    return DEFAULT_CONFIG;
+  }
+
   try {
     // Dynamic import of the config file
     const configModule = await import(fileUrl);
@@ -55,11 +62,7 @@ export async function loadConfig(configPath = './codedocs.config.ts'): Promise<C
 
     return mergedConfig as CodeDocsConfig;
   } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ERR_MODULE_NOT_FOUND') {
-      console.warn(`Config file not found at ${configPath}, using defaults`);
-      return DEFAULT_CONFIG;
-    }
-
-    throw new Error(`Failed to load config from ${configPath}: ${error}`);
+    const msg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to load config from ${configPath}: ${msg}`);
   }
 }

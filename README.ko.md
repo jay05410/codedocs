@@ -52,9 +52,8 @@ npm install @codedocs/core @codedocs/cli @codedocs/theme @codedocs/vite-plugin
 `codedocs.config.ts`로 설정합니다:
 
 ```typescript
-import { defineConfig } from '@codedocs/core';
-
-export default defineConfig({
+/** @type {import('@codedocs/core').CodeDocsConfig} */
+export default {
   // 분석할 소스 코드 경로
   source: './src',
 
@@ -91,7 +90,7 @@ export default defineConfig({
     preset: 'default',         // default | swagger | redoc | mintlify
     colors: { primary: '#2e8555' },
   },
-});
+};
 ```
 
 ## CLI 명령어

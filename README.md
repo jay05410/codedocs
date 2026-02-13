@@ -52,9 +52,8 @@ npm install @codedocs/core @codedocs/cli @codedocs/theme @codedocs/vite-plugin
 CodeDocs is configured via `codedocs.config.ts`:
 
 ```typescript
-import { defineConfig } from '@codedocs/core';
-
-export default defineConfig({
+/** @type {import('@codedocs/core').CodeDocsConfig} */
+export default {
   // Source code to analyze
   source: './src',
 
@@ -91,7 +90,7 @@ export default defineConfig({
     preset: 'default',         // default | swagger | redoc | mintlify
     colors: { primary: '#2e8555' },
   },
-});
+};
 ```
 
 ## CLI Commands
