@@ -102,7 +102,7 @@ export default {
 | `codedocs generate` | 분석 결과로 마크다운 문서 생성 |
 | `codedocs build` | 전체 파이프라인: 분석 + 생성 + 정적 사이트 빌드 |
 | `codedocs serve` | 문서 로컬 미리보기 |
-| `codedocs dev` | 워치 모드 (자동 재분석 + HMR) |
+| `codedocs dev` | 워치 모드 (자동 재분석 + 라이브 프리뷰) |
 | `codedocs changelog` | 변경 이력 생성 및 버전 비교 |
 
 ### 옵션
@@ -167,14 +167,24 @@ export default defineConfig({
 
 ### AI 강화 문서
 
-- 관련 엔드포인트의 도메인별 그룹핑
-- Mermaid 다이어그램 (ER, 시퀀스, 플로우, 클래스, 상태, 컴포넌트, 배포)
-- 코드 설명 및 비즈니스 로직 문서화
-- 요청/응답 예시 자동 생성
-- Pagefind 기반 전문 검색
-- Shiki 코드 하이라이팅 (라이트/다크 듀얼 테마)
-- 증분 빌드 캐싱으로 빠른 재빌드
-- 워치 모드 + HMR (Hot Module Replacement)
+`generate` 단계에서 AI를 활용하여 문서 품질을 높입니다:
+
+| Feature Flag | 기능 | 토큰 비용 |
+|---|---|---|
+| `domainGrouping` | 엔드포인트/엔티티를 비즈니스 도메인별로 사이드바 그룹핑 | ~800 토큰 |
+| `flowDiagrams` | Mermaid 아키텍처 플로우 다이어그램 생성 | ~500 토큰 |
+| `codeExplanation` | API 엔드포인트별 요청/응답 예시 생성 | ~500/엔드포인트 |
+
+- 프롬프트는 영어로 전송하여 토큰 절약 (~20-30%)
+- 응답은 `docs.locale` 설정 언어로 반환
+- 3단계 폴백: AI → 휴리스틱 그룹핑 → 정적 사이드바
+- 총 예산: ~9,000 토큰/실행 (그룹핑 1회 + 예시 15개 + 다이어그램 1회)
+
+기타 기능:
+- 워치 모드 + 라이브 프리뷰
+- Marked 기반 정적 HTML 빌드
+- Mermaid 다이어그램 복사/확대 인터랙션
+- 계층형 접이식 사이드바
 
 ### 테마 프리셋
 
@@ -305,7 +315,7 @@ npx turbo run dev
 |------|------|
 | 모노레포 | Turborepo + npm 워크스페이스 |
 | 언어 | TypeScript (strict) |
-| SSG | Vite + marked |
+| 정적 빌드 | Marked (HTML 렌더링) |
 | 마크다운 | unified (remark + rehype) |
 | 코드 하이라이팅 | Shiki |
 | 검색 | Pagefind |
