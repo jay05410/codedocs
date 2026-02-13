@@ -9,18 +9,397 @@ import { detectStack, formatDetectionResult } from '../detect.js';
 import type { DetectedStack, SuggestedParser } from '../detect.js';
 import { getCliStrings, t, initLocale } from '../i18n.js';
 
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const BACK_VALUE = '__back__';
+
+/**
+ * AI model choices per provider (Feb 2026)
+ * Criteria: large context window (>= 200K) for codebase analysis, cost-effective
+ */
+const AI_MODELS: Record<string, Array<{ name: string; value: string }>> = {
+  openai: [
+    { name: 'GPT-5.2 (recommended) - 400K context', value: 'gpt-5.2' },
+    { name: 'GPT-5 mini - 400K context, budget', value: 'gpt-5-mini' },
+    { name: 'GPT-4o - 128K context, legacy', value: 'gpt-4o' },
+  ],
+  claude: [
+    { name: 'Claude Sonnet 4.5 (recommended) - 1M context', value: 'claude-sonnet-4-5-20250929' },
+    { name: 'Claude Sonnet 5 - 1M context, latest', value: 'claude-sonnet-5-20260203' },
+    { name: 'Claude Opus 4.6 - 1M context, max quality', value: 'claude-opus-4-6-20260205' },
+  ],
+  gemini: [
+    { name: 'Gemini 3 Pro (recommended) - 1M context', value: 'gemini-3-pro' },
+    { name: 'Gemini 3 Flash - 200K context, fast', value: 'gemini-3-flash' },
+    { name: 'Gemini 2.5 Pro - 1M context, stable', value: 'gemini-2.5-pro' },
+  ],
+  glm: [
+    { name: 'GLM-4 Plus (recommended)', value: 'glm-4-plus' },
+    { name: 'GLM-4', value: 'glm-4' },
+  ],
+  ollama: [
+    { name: 'Qwen 3 (recommended) - 128K context', value: 'qwen3' },
+    { name: 'Llama 3.3 - popular, versatile', value: 'llama3.3' },
+    { name: 'DeepSeek Coder v2 - code specialized', value: 'deepseek-coder-v2' },
+    { name: 'Granite 4 - enterprise, tool-calling', value: 'granite4' },
+  ],
+};
+
+/** All available parsers */
+const ALL_PARSERS = [
+  { pkg: '@codedocs/parser-kotlin-spring', label: 'Kotlin + Spring Boot' },
+  { pkg: '@codedocs/parser-java-spring', label: 'Java + Spring Boot' },
+  { pkg: '@codedocs/parser-typescript-nestjs', label: 'TypeScript + NestJS' },
+  { pkg: '@codedocs/parser-python-fastapi', label: 'Python + FastAPI' },
+  { pkg: '@codedocs/parser-php', label: 'PHP (Laravel / Symfony)' },
+  { pkg: '@codedocs/parser-openapi', label: 'OpenAPI / Swagger' },
+  { pkg: '@codedocs/parser-go', label: 'Go (Gin / Echo / Fiber)' },
+  { pkg: '@codedocs/parser-c', label: 'C' },
+  { pkg: '@codedocs/parser-cpp', label: 'C++' },
+  { pkg: '@codedocs/parser-graphql', label: 'GraphQL SDL' },
+  { pkg: '@codedocs/parser-react', label: 'React / Next.js' },
+  { pkg: '@codedocs/parser-vue', label: 'Vue / Nuxt' },
+  { pkg: '@codedocs/parser-svelte', label: 'Svelte / SvelteKit' },
+];
+
+/** Parser import/factory info for config file generation */
+const PARSER_INFO: Record<string, SuggestedParser> = {
+  '@codedocs/parser-kotlin-spring': { package: '@codedocs/parser-kotlin-spring', importName: 'kotlinSpringParser', factoryFn: 'kotlinSpringParser', options: { detectFrameworks: true } },
+  '@codedocs/parser-java-spring': { package: '@codedocs/parser-java-spring', importName: 'javaSpringParser', factoryFn: 'javaSpringParser', options: { detectFrameworks: true } },
+  '@codedocs/parser-typescript-nestjs': { package: '@codedocs/parser-typescript-nestjs', importName: 'nestjsParser', factoryFn: 'nestjsParser', options: { detectOrm: true } },
+  '@codedocs/parser-python-fastapi': { package: '@codedocs/parser-python-fastapi', importName: 'fastApiParser', factoryFn: 'fastApiParser', options: { detectOrm: true, detectPydantic: true } },
+  '@codedocs/parser-php': { package: '@codedocs/parser-php', importName: 'phpParser', factoryFn: 'phpParser', options: { detectFrameworks: true } },
+  '@codedocs/parser-openapi': { package: '@codedocs/parser-openapi', importName: 'openApiParser', factoryFn: 'openApiParser', options: { parseSchemas: true } },
+  '@codedocs/parser-go': { package: '@codedocs/parser-go', importName: 'goParser', factoryFn: 'goParser', options: { detectFrameworks: true } },
+  '@codedocs/parser-c': { package: '@codedocs/parser-c', importName: 'cParser', factoryFn: 'cParser' },
+  '@codedocs/parser-cpp': { package: '@codedocs/parser-cpp', importName: 'cppParser', factoryFn: 'cppParser' },
+  '@codedocs/parser-graphql': { package: '@codedocs/parser-graphql', importName: 'graphqlParser', factoryFn: 'graphqlParser', options: { parseSchemas: true } },
+  '@codedocs/parser-react': { package: '@codedocs/parser-react', importName: 'reactParser', factoryFn: 'reactParser', options: { detectRoutes: true } },
+  '@codedocs/parser-vue': { package: '@codedocs/parser-vue', importName: 'vueParser', factoryFn: 'vueParser', options: { detectRoutes: true } },
+  '@codedocs/parser-svelte': { package: '@codedocs/parser-svelte', importName: 'svelteParser', factoryFn: 'svelteParser', options: { detectRoutes: true } },
+};
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
 interface InitAnswers {
   projectName: string;
   sourcePath: string;
   language: string;
   parsers: string[];
-  aiProvider: 'openai' | 'claude' | 'gemini' | 'ollama' | 'none';
+  aiProvider: 'openai' | 'claude' | 'gemini' | 'glm' | 'ollama' | 'none';
   aiModel?: string;
   apiKey?: string;
   locale: 'ko' | 'en' | 'ja' | 'zh';
   deployTarget: 'github-pages' | 'gitlab-pages' | 'nginx' | 'jenkins' | 'local';
   generateCI: boolean;
 }
+
+// ─── Wizard ─────────────────────────────────────────────────────────────────
+
+// Helper to work around inquirer v10 type mismatch with @types/inquirer@9
+async function prompt<T = any>(questions: any): Promise<T> {
+  return inquirer.prompt(questions) as Promise<T>;
+}
+
+/**
+ * Build parser choices with recommended (detected) parsers first
+ */
+function buildParserChoices(detected: DetectedStack) {
+  const detectedPkgs = new Set(detected.suggestedParsers.map(p => p.package));
+  const recommended: Array<{ name: string; value: string; checked: boolean }> = [];
+  const others: Array<{ name: string; value: string; checked: boolean }> = [];
+
+  for (const parser of ALL_PARSERS) {
+    if (detectedPkgs.has(parser.pkg)) {
+      recommended.push({
+        name: `${parser.label} ${chalk.green('\u2605 recommended')}`,
+        value: parser.pkg,
+        checked: true,
+      });
+    } else {
+      others.push({
+        name: parser.label,
+        value: parser.pkg,
+        checked: false,
+      });
+    }
+  }
+
+  return { recommended, others };
+}
+
+/**
+ * Step-by-step interactive wizard with back navigation
+ */
+async function runWizard(detected: DetectedStack, targetDir: string): Promise<InitAnswers> {
+  const s = getCliStrings().cli;
+  const answers: Record<string, any> = {};
+  const primaryLang = detected.languages[0]?.name || 'Auto-detect';
+  const { recommended, others } = buildParserChoices(detected);
+  const hasRecommendedParsers = recommended.length > 0;
+  const totalParserChoices = recommended.length + others.length;
+
+  const backSep = new inquirer.Separator('───────────────');
+  const backChoice = { name: chalk.dim('\u2190 Back to previous step'), value: BACK_VALUE };
+
+  interface WizardStep {
+    key: string;
+    skip?: () => boolean;
+    prompt: () => Promise<any>;
+  }
+
+  const steps: WizardStep[] = [
+    // Step 0: Project name
+    {
+      key: 'projectName',
+      prompt: async () => {
+        const { value } = await prompt([{
+          type: 'input',
+          name: 'value',
+          message: s.projectName,
+          default: answers.projectName || basename(targetDir) || 'my-docs',
+          validate: (input: string) => input.length > 0 || s.projectNameRequired,
+        }]);
+        return value;
+      },
+    },
+
+    // Step 1: Source path
+    {
+      key: 'sourcePath',
+      prompt: async () => {
+        const { value } = await prompt([{
+          type: 'input',
+          name: 'value',
+          message: s.sourceCodePath,
+          default: answers.sourcePath || detected.sourcePath || './src',
+        }]);
+        return value;
+      },
+    },
+
+    // Step 2: Language (detected language shown first with ★ recommended)
+    {
+      key: 'language',
+      prompt: async () => {
+        const allLangs = ['TypeScript', 'JavaScript', 'Kotlin', 'Java', 'Python', 'Go', 'PHP', 'C', 'C++', 'Rust'];
+        const langChoices: any[] = [];
+
+        if (primaryLang !== 'Auto-detect') {
+          langChoices.push({ name: `${primaryLang} ${chalk.green('\u2605 recommended')}`, value: primaryLang });
+          langChoices.push(new inquirer.Separator(chalk.dim('── Other languages ──')));
+          for (const lang of allLangs) {
+            if (lang !== primaryLang) langChoices.push(lang);
+          }
+        } else {
+          langChoices.push(...allLangs);
+        }
+        langChoices.push('Auto-detect', backSep, backChoice);
+
+        const { value } = await prompt([{
+          type: 'list',
+          name: 'value',
+          message: s.primaryLanguage,
+          choices: langChoices,
+          default: answers.language || primaryLang,
+        }]);
+        return value;
+      },
+    },
+
+    // Step 3: Parser selection
+    {
+      key: 'parsers',
+      skip: () => totalParserChoices === 0,
+      prompt: async () => {
+        const choices: any[] = [];
+
+        if (hasRecommendedParsers) {
+          choices.push(new inquirer.Separator(chalk.dim('── Recommended (auto-detected) ──')));
+          choices.push(...recommended);
+          choices.push(new inquirer.Separator(chalk.dim('── Other parsers ──')));
+          choices.push(...others);
+        } else {
+          choices.push(...others);
+        }
+
+        choices.push(backSep, backChoice);
+
+        const { value } = await prompt([{
+          type: 'checkbox',
+          name: 'value',
+          message: s.selectParsers,
+          choices,
+        }]);
+
+        if (Array.isArray(value) && value.includes(BACK_VALUE)) {
+          return BACK_VALUE;
+        }
+        return value;
+      },
+    },
+
+    // Step 4: AI provider
+    {
+      key: 'aiProvider',
+      prompt: async () => {
+        const { value } = await prompt([{
+          type: 'list',
+          name: 'value',
+          message: s.aiProvider,
+          choices: [
+            { name: 'OpenAI', value: 'openai' },
+            { name: 'Anthropic Claude', value: 'claude' },
+            { name: 'Google Gemini', value: 'gemini' },
+            { name: 'GLM (Zhipu AI)', value: 'glm' },
+            new inquirer.Separator(chalk.dim('── Local ──')),
+            { name: 'Ollama (free, runs on your machine)', value: 'ollama' },
+            new inquirer.Separator(chalk.dim('──────────')),
+            { name: 'None (basic extraction only)', value: 'none' },
+            backSep, backChoice,
+          ],
+          default: answers.aiProvider || 'openai',
+        }]);
+
+        // Show Ollama setup guide when selected
+        if (value === 'ollama') {
+          console.log(chalk.cyan('\n  Ollama - Local AI Model Runner'));
+          console.log(chalk.dim('  Ollama runs AI models locally on your machine (no API key needed).'));
+          console.log(chalk.dim('  Setup:'));
+          console.log(chalk.dim('    1. Install: https://ollama.ai'));
+          console.log(chalk.dim('    2. Pull a model: ollama pull qwen3'));
+          console.log(chalk.dim('    3. Ollama runs at http://localhost:11434'));
+          console.log(chalk.dim('  Recommended: 16GB+ RAM, GPU for best performance.\n'));
+        }
+
+        return value;
+      },
+    },
+
+    // Step 5: AI model (list selection, not free text)
+    {
+      key: 'aiModel',
+      skip: () => answers.aiProvider === 'none',
+      prompt: async () => {
+        const models = AI_MODELS[answers.aiProvider] || [];
+        const { value } = await prompt([{
+          type: 'list',
+          name: 'value',
+          message: s.aiModel,
+          choices: [...models, backSep, backChoice],
+          default: answers.aiModel || models[0]?.value,
+        }]);
+        return value;
+      },
+    },
+
+    // Step 6: API key
+    {
+      key: 'apiKey',
+      skip: () => answers.aiProvider === 'none' || answers.aiProvider === 'ollama',
+      prompt: async () => {
+        const { value } = await prompt([{
+          type: 'password',
+          name: 'value',
+          message: `${s.apiKeyPrompt} ${chalk.dim('(leave empty to use environment variable)')}`,
+        }]);
+        return value || '';
+      },
+    },
+
+    // Step 7: Documentation language
+    {
+      key: 'locale',
+      prompt: async () => {
+        const { value } = await prompt([{
+          type: 'list',
+          name: 'value',
+          message: s.docLanguage,
+          choices: [
+            { name: 'Korean (\ud55c\uad6d\uc5b4)', value: 'ko' },
+            { name: 'English', value: 'en' },
+            { name: 'Japanese (\u65e5\u672c\u8a9e)', value: 'ja' },
+            { name: 'Chinese (\u4e2d\u6587)', value: 'zh' },
+            backSep, backChoice,
+          ],
+          default: answers.locale || 'ko',
+        }]);
+        return value;
+      },
+    },
+
+    // Step 8: Deployment target
+    {
+      key: 'deployTarget',
+      prompt: async () => {
+        const { value } = await prompt([{
+          type: 'list',
+          name: 'value',
+          message: s.deployTarget,
+          choices: [
+            { name: 'GitHub Pages', value: 'github-pages' },
+            { name: 'GitLab Pages', value: 'gitlab-pages' },
+            { name: 'Jenkins', value: 'jenkins' },
+            { name: 'Nginx/Apache', value: 'nginx' },
+            { name: 'Local only', value: 'local' },
+            backSep, backChoice,
+          ],
+          default: answers.deployTarget || 'github-pages',
+        }]);
+        return value;
+      },
+    },
+
+    // Step 9: Generate CI/CD
+    {
+      key: 'generateCI',
+      skip: () => answers.deployTarget === 'local',
+      prompt: async () => {
+        const { value } = await prompt([{
+          type: 'confirm',
+          name: 'value',
+          message: s.generateCI,
+          default: answers.generateCI ?? true,
+        }]);
+        return value;
+      },
+    },
+  ];
+
+  let i = 0;
+  while (i < steps.length) {
+    const step = steps[i];
+
+    // Skip conditional steps
+    if (step.skip?.()) {
+      i++;
+      continue;
+    }
+
+    const result = await step.prompt();
+
+    if (result === BACK_VALUE) {
+      // Go back to previous non-skipped step
+      do {
+        i--;
+      } while (i > 0 && steps[i].skip?.());
+      i = Math.max(0, i);
+      continue;
+    }
+
+    answers[step.key] = result;
+    i++;
+  }
+
+  // Ensure parsers have a value
+  if (!answers.parsers) {
+    answers.parsers = detected.suggestedParsers.map(p => p.package);
+  }
+
+  return answers as unknown as InitAnswers;
+}
+
+// ─── Command ────────────────────────────────────────────────────────────────
 
 export const initCommand = new Command('init')
   .description('Initialize a new CodeDocs project')
@@ -30,7 +409,7 @@ export const initCommand = new Command('init')
   .option('--ci', 'Generate CI/CD config only')
   .action(async (options) => {
     const s = getCliStrings().cli;
-    console.log(chalk.bold.cyan(`\n📚 ${s.initTitle}\n`));
+    console.log(chalk.bold.cyan(`\n\ud83d\udcda ${s.initTitle}\n`));
 
     // Handle --ci only mode
     if (options.ci) {
@@ -46,7 +425,6 @@ export const initCommand = new Command('init')
     try {
       detected = await detectStack(targetDir);
       detectSpinner.succeed(s.stackDetected);
-
       console.log(chalk.dim('\n' + formatDetectionResult(detected) + '\n'));
     } catch {
       detectSpinner.warn(s.stackDetectFailed);
@@ -58,144 +436,7 @@ export const initCommand = new Command('init')
     if (options.yes || options.detect) {
       answers = getDefaultAnswers(detected);
     } else {
-      // Build parser choices from detection
-      const parserChoices = detected.suggestedParsers.map((p) => ({
-        name: `${p.package} (auto-detected)`,
-        value: p.package,
-        checked: true,
-      }));
-
-      // Add undetected parsers as unchecked options
-      const allParsers = [
-        { pkg: '@codedocs/parser-kotlin-spring', label: 'Kotlin + Spring Boot' },
-        { pkg: '@codedocs/parser-java-spring', label: 'Java + Spring Boot' },
-        { pkg: '@codedocs/parser-typescript-nestjs', label: 'TypeScript + NestJS' },
-        { pkg: '@codedocs/parser-python-fastapi', label: 'Python + FastAPI' },
-        { pkg: '@codedocs/parser-openapi', label: 'OpenAPI / Swagger' },
-      ];
-      const detectedPkgs = new Set(detected.suggestedParsers.map((p) => p.package));
-      for (const parser of allParsers) {
-        if (!detectedPkgs.has(parser.pkg)) {
-          parserChoices.push({ name: parser.label, value: parser.pkg, checked: false });
-        }
-      }
-
-      const primaryLang = detected.languages[0]?.name || 'Auto-detect';
-
-      answers = (await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'projectName',
-          message: s.projectName,
-          default: basename(targetDir) || 'my-docs',
-          validate: (input: string) => input.length > 0 || s.projectNameRequired,
-        },
-        {
-          type: 'input',
-          name: 'sourcePath',
-          message: s.sourceCodePath,
-          default: detected.sourcePath || './src',
-        },
-        {
-          type: 'list',
-          name: 'language',
-          message: `${s.primaryLanguage} ${primaryLang !== 'Auto-detect' ? chalk.dim(`(detected: ${primaryLang})`) : ''}`,
-          choices: [
-            'TypeScript',
-            'JavaScript',
-            'Kotlin',
-            'Java',
-            'Python',
-            'Go',
-            'Rust',
-            'Auto-detect',
-          ],
-          default: primaryLang,
-        },
-        {
-          type: 'checkbox',
-          name: 'parsers',
-          message: s.selectParsers,
-          choices: parserChoices,
-          when: () => parserChoices.length > 0,
-        },
-        {
-          type: 'list',
-          name: 'aiProvider',
-          message: s.aiProvider,
-          choices: [
-            { name: 'OpenAI (GPT-4, GPT-3.5)', value: 'openai' },
-            { name: 'Anthropic Claude', value: 'claude' },
-            { name: 'Google Gemini', value: 'gemini' },
-            { name: 'Ollama (local)', value: 'ollama' },
-            { name: 'None (basic extraction only)', value: 'none' },
-          ],
-          default: 'openai',
-        },
-        {
-          type: 'input',
-          name: 'aiModel',
-          message: s.aiModel,
-          when: (ans: any) => ans.aiProvider !== 'none',
-          default: (ans: any) => {
-            switch (ans.aiProvider) {
-              case 'openai':
-                return 'gpt-4-turbo-preview';
-              case 'claude':
-                return 'claude-3-opus-20240229';
-              case 'gemini':
-                return 'gemini-pro';
-              case 'ollama':
-                return 'llama2';
-              default:
-                return '';
-            }
-          },
-        },
-        {
-          type: 'password',
-          name: 'apiKey',
-          message: s.apiKeyPrompt,
-          when: (ans: any) => ans.aiProvider !== 'none' && ans.aiProvider !== 'ollama',
-        },
-        {
-          type: 'list',
-          name: 'locale',
-          message: s.docLanguage,
-          choices: [
-            { name: 'Korean (한국어)', value: 'ko' },
-            { name: 'English', value: 'en' },
-            { name: 'Japanese (日本語)', value: 'ja' },
-            { name: 'Chinese (中文)', value: 'zh' },
-          ],
-          default: 'ko',
-        },
-        {
-          type: 'list',
-          name: 'deployTarget',
-          message: s.deployTarget,
-          choices: [
-            { name: 'GitHub Pages', value: 'github-pages' },
-            { name: 'GitLab Pages', value: 'gitlab-pages' },
-            { name: 'Jenkins', value: 'jenkins' },
-            { name: 'Nginx/Apache', value: 'nginx' },
-            { name: 'Local only', value: 'local' },
-          ],
-          default: 'github-pages',
-        },
-        {
-          type: 'confirm',
-          name: 'generateCI',
-          message: s.generateCI,
-          when: (ans: any) => ans.deployTarget !== 'local',
-          default: true,
-        },
-      ] as any)) as InitAnswers;
-
-      // If parsers weren't asked (no choices), use detected
-      if (!answers.parsers) {
-        answers.parsers = detected.suggestedParsers.map((p) => p.package);
-      }
+      answers = await runWizard(detected, targetDir);
     }
 
     // After getting locale from answers, re-init locale
@@ -223,7 +464,7 @@ export const initCommand = new Command('init')
 
       spinner.succeed(strings.configCreated);
 
-      console.log(chalk.green(`\n✓ ${strings.initSuccess}\n`));
+      console.log(chalk.green(`\n\u2713 ${strings.initSuccess}\n`));
       console.log(chalk.dim(strings.createdFiles));
       console.log(chalk.dim('  - codedocs.config.ts'));
       if (answers.generateCI) {
@@ -257,6 +498,8 @@ export const initCommand = new Command('init')
     }
   });
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
 function getDefaultAnswers(detected?: DetectedStack): InitAnswers {
   return {
     projectName: basename(process.cwd()) || 'my-docs',
@@ -264,15 +507,33 @@ function getDefaultAnswers(detected?: DetectedStack): InitAnswers {
     language: detected?.languages[0]?.name || 'Auto-detect',
     parsers: detected?.suggestedParsers.map((p) => p.package) || [],
     aiProvider: 'openai',
-    aiModel: 'gpt-4-turbo-preview',
+    aiModel: 'gpt-5.2',
     locale: 'ko',
     deployTarget: 'github-pages',
     generateCI: true,
   };
 }
 
+function getEnvVarName(provider: string): string {
+  switch (provider) {
+    case 'openai':
+      return 'OPENAI_API_KEY';
+    case 'claude':
+      return 'ANTHROPIC_API_KEY';
+    case 'gemini':
+      return 'GOOGLE_API_KEY';
+    case 'glm':
+      return 'GLM_API_KEY';
+    case 'ollama':
+      return 'OLLAMA_BASE_URL';
+    default:
+      return 'AI_API_KEY';
+  }
+}
+
+// ─── Config File Generation ─────────────────────────────────────────────────
+
 function generateConfigFile(answers: InitAnswers, detected?: DetectedStack): string {
-  // Build parser imports and config
   const selectedParsers = answers.parsers || [];
   const parserMap = new Map<string, SuggestedParser>();
   if (detected) {
@@ -280,20 +541,12 @@ function generateConfigFile(answers: InitAnswers, detected?: DetectedStack): str
       parserMap.set(p.package, p);
     }
   }
-  // Add defaults for manually selected parsers
-  const parserDefaults: Record<string, SuggestedParser> = {
-    '@codedocs/parser-kotlin-spring': { package: '@codedocs/parser-kotlin-spring', importName: 'kotlinSpringParser', factoryFn: 'kotlinSpringParser', options: { detectFrameworks: true } },
-    '@codedocs/parser-java-spring': { package: '@codedocs/parser-java-spring', importName: 'javaSpringParser', factoryFn: 'javaSpringParser', options: { detectFrameworks: true } },
-    '@codedocs/parser-typescript-nestjs': { package: '@codedocs/parser-typescript-nestjs', importName: 'nestjsParser', factoryFn: 'nestjsParser', options: { detectOrm: true } },
-    '@codedocs/parser-python-fastapi': { package: '@codedocs/parser-python-fastapi', importName: 'fastApiParser', factoryFn: 'fastApiParser', options: { detectOrm: true, detectPydantic: true } },
-    '@codedocs/parser-openapi': { package: '@codedocs/parser-openapi', importName: 'openApiParser', factoryFn: 'openApiParser', options: { parseSchemas: true } },
-  };
 
   const parserImports: string[] = [];
   const parserConfigs: string[] = [];
 
   for (const pkg of selectedParsers) {
-    const info = parserMap.get(pkg) || parserDefaults[pkg];
+    const info = parserMap.get(pkg) || PARSER_INFO[pkg];
     if (!info) continue;
     parserImports.push(`import { ${info.importName} } from '${pkg}';`);
     if (info.options && Object.keys(info.options).length > 0) {
@@ -313,10 +566,15 @@ function generateConfigFile(answers: InitAnswers, detected?: DetectedStack): str
     ? `\n  // Parsers (auto-detected)\n  parsers: [\n${parserConfigs.join('\n')}\n  ],\n`
     : '';
 
-  const aiConfig =
-    answers.aiProvider !== 'none'
-      ? `\n  // AI configuration\n  ai: {\n    provider: '${answers.aiProvider}',\n    model: '${answers.aiModel}',\n    apiKey: process.env.${getEnvVarName(answers.aiProvider)}${answers.apiKey ? ` || '${answers.apiKey}'` : ''},\n    features: {\n      domainGrouping: true,\n      flowDiagrams: true,\n      codeExplanation: true,\n      releaseNoteAnalysis: true,\n    },\n  },\n`
-      : '';
+  let aiConfig = '';
+  if (answers.aiProvider !== 'none') {
+    const envVar = getEnvVarName(answers.aiProvider);
+    const apiKeyLine = answers.aiProvider === 'ollama'
+      ? `    baseUrl: process.env.${envVar} || 'http://localhost:11434',`
+      : `    apiKey: process.env.${envVar}${answers.apiKey ? ` || '${answers.apiKey}'` : ''},`;
+
+    aiConfig = `\n  // AI configuration\n  ai: {\n    provider: '${answers.aiProvider}',\n    model: '${answers.aiModel}',\n${apiKeyLine}\n    features: {\n      domainGrouping: true,\n      flowDiagrams: true,\n      codeExplanation: true,\n      releaseNoteAnalysis: true,\n    },\n  },\n`;
+  }
 
   return `${importsBlock}
 
@@ -355,9 +613,12 @@ ${parsersBlock}${aiConfig}
 `;
 }
 
+// ─── CI/CD Generation ───────────────────────────────────────────────────────
+
 function generateCIConfig(answers: InitAnswers): void {
   const envVar = getEnvVarName(answers.aiProvider);
   const branch = 'main';
+  const hasEnvVar = answers.aiProvider !== 'none';
 
   if (answers.deployTarget === 'github-pages') {
     const workflowDir = resolve(process.cwd(), '.github/workflows');
@@ -365,22 +626,30 @@ function generateCIConfig(answers: InitAnswers): void {
       mkdirSync(workflowDir, { recursive: true });
     }
 
+    // Pre-compute GitHub Actions expressions to avoid Handlebars {{ }} conflicts
+    const secretsRef = `\${{ secrets.${envVar} }}`;
+    const deployUrlRef = '${{ steps.deployment.outputs.page_url }}';
+
     const template = Handlebars.compile(GITHUB_ACTIONS_TEMPLATE);
-    const content = template({ branch, envVar });
+    const content = template({ branch, envVar, secretsRef, deployUrlRef, hasEnvVar });
 
     writeFileSync(join(workflowDir, 'deploy.yml'), content, 'utf-8');
   } else if (answers.deployTarget === 'gitlab-pages') {
+    // Pre-compute GitLab CI variable reference
+    const gitlabVarRef = `\${${envVar}}`;
+
     const template = Handlebars.compile(GITLAB_CI_TEMPLATE);
-    const content = template({ branch, envVar });
+    const content = template({ branch, envVar, gitlabVarRef, hasEnvVar });
 
     writeFileSync(resolve(process.cwd(), '.gitlab-ci.yml'), content, 'utf-8');
   } else if (answers.deployTarget === 'jenkins') {
     const template = Handlebars.compile(JENKINSFILE_TEMPLATE);
     const content = template({
       envVar,
-      envVarCredentialId: `${envVar.toLowerCase()}-credential`,
+      envVarCredentialId: `${envVar.toLowerCase().replace(/_/g, '-')}-credential`,
       isNginx: false,
       deployPath: '/var/www/codedocs/dist/',
+      hasEnvVar,
     });
 
     writeFileSync(resolve(process.cwd(), 'Jenkinsfile'), content, 'utf-8');
@@ -390,7 +659,7 @@ function generateCIConfig(answers: InitAnswers): void {
 async function generateCIOnly(): Promise<void> {
   const s = getCliStrings().cli;
 
-  const answers = await inquirer.prompt([
+  const answers = await prompt([
     {
       type: 'list',
       name: 'deployTarget',
@@ -408,9 +677,10 @@ async function generateCIOnly(): Promise<void> {
       name: 'aiProvider',
       message: s.aiProvider,
       choices: [
-        { name: 'OpenAI (GPT-4, GPT-3.5)', value: 'openai' },
+        { name: 'OpenAI', value: 'openai' },
         { name: 'Anthropic Claude', value: 'claude' },
         { name: 'Google Gemini', value: 'gemini' },
+        { name: 'GLM (Zhipu AI)', value: 'glm' },
         { name: 'Ollama (local)', value: 'ollama' },
         { name: 'None', value: 'none' },
       ],
@@ -431,7 +701,7 @@ async function generateCIOnly(): Promise<void> {
         ? '.gitlab-ci.yml'
         : 'Jenkinsfile';
 
-    console.log(chalk.green(`\n✓ Created ${ciFile}\n`));
+    console.log(chalk.green(`\n\u2713 Created ${ciFile}\n`));
   } catch (error) {
     spinner.fail('Failed to generate CI/CD config');
     console.error(chalk.red((error as Error).message));
@@ -439,22 +709,10 @@ async function generateCIOnly(): Promise<void> {
   }
 }
 
-function getEnvVarName(provider: string): string {
-  switch (provider) {
-    case 'openai':
-      return 'OPENAI_API_KEY';
-    case 'claude':
-      return 'ANTHROPIC_API_KEY';
-    case 'gemini':
-      return 'GOOGLE_API_KEY';
-    case 'ollama':
-      return 'OLLAMA_BASE_URL';
-    default:
-      return 'AI_API_KEY';
-  }
-}
+// ─── CI/CD Templates ────────────────────────────────────────────────────────
+// Templates use Handlebars with pre-computed expression values (triple-stache)
+// to avoid conflicts between Handlebars {{ }} and CI platform ${{ }} syntax.
 
-// CI/CD Templates (embedded as string constants for npm package compatibility)
 const GITHUB_ACTIONS_TEMPLATE = `name: Deploy CodeDocs
 
 on:
@@ -481,8 +739,10 @@ jobs:
         run: npm ci
       - name: Build documentation
         run: npx codedocs build
+{{#if hasEnvVar}}
         env:
-          {{envVar}}: \${{ secrets.{{envVar}} }}
+          {{envVar}}: {{{secretsRef}}}
+{{/if}}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
@@ -493,7 +753,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
+      url: {{{deployUrlRef}}}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
@@ -516,8 +776,10 @@ pages:
       - public
   only:
     - {{branch}}
+{{#if hasEnvVar}}
   variables:
-    {{envVar}}: \${{{envVar}}}
+    {{envVar}}: {{{gitlabVarRef}}}
+{{/if}}
 `;
 
 const JENKINSFILE_TEMPLATE = `pipeline {
@@ -526,10 +788,12 @@ const JENKINSFILE_TEMPLATE = `pipeline {
     tools {
         nodejs 'Node20'
     }
+{{#if hasEnvVar}}
 
     environment {
         {{envVar}} = credentials('{{envVarCredentialId}}')
     }
+{{/if}}
 
     stages {
         stage('Install') {

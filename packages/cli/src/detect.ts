@@ -283,6 +283,26 @@ function detectFrameworks(dir: string): StackFramework[] {
     }
   }
 
+  // -- PHP --
+  const composerJsonPath = join(dir, 'composer.json');
+  if (existsSync(composerJsonPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(composerJsonPath, 'utf-8'));
+      const allDeps = { ...pkg.require, ...pkg['require-dev'] };
+      if (allDeps['laravel/framework']) {
+        frameworks.push({ name: 'Laravel', confidence: 'high', evidence: 'composer.json: laravel/framework' });
+      }
+      if (allDeps['symfony/framework-bundle']) {
+        frameworks.push({ name: 'Symfony', confidence: 'high', evidence: 'composer.json: symfony/framework-bundle' });
+      }
+      if (allDeps['doctrine/orm'] || allDeps['doctrine/dbal']) {
+        frameworks.push({ name: 'Doctrine', confidence: 'high', evidence: 'composer.json: doctrine' });
+      }
+    } catch {
+      // Invalid composer.json
+    }
+  }
+
   return frameworks;
 }
 
@@ -383,6 +403,66 @@ function suggestParsers(
       importName: 'openApiParser',
       factoryFn: 'openApiParser',
       options: { parseSchemas: true },
+    });
+  }
+
+  // Go frameworks
+  if (frameworkNames.has('Gin') || frameworkNames.has('Echo') || frameworkNames.has('Fiber')) {
+    parsers.push({
+      package: '@codedocs/parser-go',
+      importName: 'goParser',
+      factoryFn: 'goParser',
+      options: { detectFrameworks: true },
+    });
+  }
+
+  // React / Next.js
+  if (frameworkNames.has('React') || frameworkNames.has('Next.js')) {
+    parsers.push({
+      package: '@codedocs/parser-react',
+      importName: 'reactParser',
+      factoryFn: 'reactParser',
+      options: { detectRoutes: true },
+    });
+  }
+
+  // Vue / Nuxt
+  if (frameworkNames.has('Vue')) {
+    parsers.push({
+      package: '@codedocs/parser-vue',
+      importName: 'vueParser',
+      factoryFn: 'vueParser',
+      options: { detectRoutes: true },
+    });
+  }
+
+  // Svelte / SvelteKit
+  if (frameworkNames.has('Svelte')) {
+    parsers.push({
+      package: '@codedocs/parser-svelte',
+      importName: 'svelteParser',
+      factoryFn: 'svelteParser',
+      options: { detectRoutes: true },
+    });
+  }
+
+  // GraphQL SDL
+  if (frameworkNames.has('Apollo GraphQL') || frameworkNames.has('DGS GraphQL') || frameworkNames.has('Strawberry GraphQL')) {
+    parsers.push({
+      package: '@codedocs/parser-graphql',
+      importName: 'graphqlParser',
+      factoryFn: 'graphqlParser',
+      options: { parseSchemas: true },
+    });
+  }
+
+  // PHP (Laravel / Symfony)
+  if (frameworkNames.has('Laravel') || frameworkNames.has('Symfony')) {
+    parsers.push({
+      package: '@codedocs/parser-php',
+      importName: 'phpParser',
+      factoryFn: 'phpParser',
+      options: { detectFrameworks: true },
     });
   }
 
