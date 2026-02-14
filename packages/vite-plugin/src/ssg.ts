@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'fs/promises';
 import { resolve, relative, extname } from 'path';
 import { createMarkdownProcessor } from './markdown-loader.js';
+import { escapeHtml, extractFrontmatter } from '@codedocs/core';
 
 export interface SsgPage {
   slug: string;
@@ -95,29 +96,4 @@ function buildHeadTags(meta: Record<string, string>, title: string): string {
   }
 
   return tags.join('\n    ');
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function extractFrontmatter(content: string): { meta: Record<string, string>; body: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (!match) return { meta: {}, body: content };
-
-  const meta: Record<string, string> = {};
-  for (const line of match[1].split('\n')) {
-    const colonIdx = line.indexOf(':');
-    if (colonIdx > 0) {
-      const key = line.slice(0, colonIdx).trim();
-      const value = line.slice(colonIdx + 1).trim().replace(/^["']|["']$/g, '');
-      meta[key] = value;
-    }
-  }
-
-  return { meta, body: match[2] };
 }

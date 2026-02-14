@@ -328,93 +328,85 @@ html.dark .shiki .dark {
   position: fixed;
   bottom: var(--codedocs-spacing-lg);
   right: var(--codedocs-spacing-lg);
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   background: var(--codedocs-primary);
   color: white;
   border: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
 }
 
 .codedocs-memo-button:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-}
-
-.codedocs-memo-button:active {
-  transform: scale(0.95);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.2);
+  background: var(--codedocs-primary-dark);
 }
 
 .codedocs-memo-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #ef4444;
+  top: -6px;
+  right: -6px;
+  background: #ff4757;
   color: white;
-  font-size: 0.75rem;
-  font-weight: 700;
-  min-width: 20px;
-  height: 20px;
-  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 6px;
+  padding: 0 4px;
   border: 2px solid var(--codedocs-bg);
 }
 
 .codedocs-memo-panel {
   position: fixed;
-  bottom: 0;
+  top: var(--codedocs-header-height);
   right: 0;
+  bottom: 0;
   width: 400px;
-  max-width: 90vw;
-  max-height: 80vh;
+  max-width: 100vw;
   background: var(--codedocs-bg);
-  border: 1px solid var(--codedocs-border);
-  border-radius: var(--codedocs-radius-md) var(--codedocs-radius-md) 0 0;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  border-left: 1px solid var(--codedocs-border);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   z-index: 200;
-  animation: slideUp 0.3s ease-out;
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 .codedocs-memo-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--codedocs-spacing-md);
-  border-bottom: 1px solid var(--codedocs-border);
-  background: var(--codedocs-bg-secondary);
+  padding: var(--codedocs-spacing-lg);
+  border-bottom: 1px solid var(--codedocs-border-light);
 }
 
 .codedocs-memo-panel-header h3 {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .codedocs-memo-close {
-  background: transparent;
+  background: var(--codedocs-bg-secondary);
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   color: var(--codedocs-text-secondary);
   cursor: pointer;
   width: 32px;
@@ -422,8 +414,8 @@ html.dark .shiki .dark {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--codedocs-radius-sm);
-  transition: background 0.2s;
+  border-radius: 8px;
+  transition: all 0.2s;
 }
 
 .codedocs-memo-close:hover {
@@ -434,29 +426,34 @@ html.dark .shiki .dark {
 .codedocs-memo-panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--codedocs-spacing-md);
+  padding: var(--codedocs-spacing-lg);
 }
 
 .codedocs-memo-editor {
-  margin-bottom: var(--codedocs-spacing-md);
+  margin-bottom: var(--codedocs-spacing-xl);
+  background: var(--codedocs-bg-secondary);
+  padding: var(--codedocs-spacing-md);
+  border-radius: var(--codedocs-radius-lg);
 }
 
 .codedocs-memo-textarea {
   width: 100%;
-  padding: var(--codedocs-spacing-sm);
+  padding: var(--codedocs-spacing-md);
   border: 1px solid var(--codedocs-border);
-  border-radius: var(--codedocs-radius-sm);
+  border-radius: var(--codedocs-radius-md);
   background: var(--codedocs-bg);
   color: var(--codedocs-text);
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   resize: vertical;
-  margin-bottom: var(--codedocs-spacing-sm);
+  margin-bottom: var(--codedocs-spacing-md);
+  transition: border-color 0.2s;
 }
 
 .codedocs-memo-textarea:focus {
   outline: none;
   border-color: var(--codedocs-primary);
+  box-shadow: 0 0 0 3px var(--codedocs-primary-light);
 }
 
 .codedocs-memo-save-btn {
@@ -465,182 +462,56 @@ html.dark .shiki .dark {
   background: var(--codedocs-primary);
   color: white;
   border: none;
-  border-radius: var(--codedocs-radius-sm);
-  font-weight: 500;
+  border-radius: var(--codedocs-radius-md);
+  font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: transform 0.1s, opacity 0.2s;
 }
 
-.codedocs-memo-save-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.codedocs-memo-save-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.codedocs-memo-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--codedocs-spacing-sm);
+.codedocs-memo-save-btn:active {
+  transform: scale(0.98);
 }
 
 .codedocs-memo-item {
-  padding: var(--codedocs-spacing-sm);
-  background: var(--codedocs-bg-secondary);
-  border: 1px solid var(--codedocs-border);
-  border-radius: var(--codedocs-radius-sm);
-}
-
-.codedocs-memo-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--codedocs-spacing-xs);
-}
-
-.codedocs-memo-timestamp {
-  font-size: 0.75rem;
-  color: var(--codedocs-text-muted);
-}
-
-.codedocs-memo-delete-btn {
-  background: transparent;
-  border: none;
-  font-size: 1.25rem;
-  color: var(--codedocs-text-secondary);
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--codedocs-radius-sm);
-  transition: background 0.2s, color 0.2s;
-}
-
-.codedocs-memo-delete-btn:hover {
-  background: var(--codedocs-bg-tertiary);
-  color: #ef4444;
-}
-
-.codedocs-memo-text {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* ── Memo Viewer ── */
-.codedocs-memo-viewer {
-  border: 1px solid var(--codedocs-border);
-  border-radius: var(--codedocs-radius-md);
-  background: var(--codedocs-bg-secondary);
   padding: var(--codedocs-spacing-md);
-  margin: var(--codedocs-spacing-md) 0;
-}
-
-.codedocs-memo-viewer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--codedocs-spacing-md);
-  padding-bottom: var(--codedocs-spacing-sm);
-  border-bottom: 1px solid var(--codedocs-border);
-}
-
-.codedocs-memo-viewer-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.codedocs-memo-clear-btn {
-  padding: var(--codedocs-spacing-xs) var(--codedocs-spacing-sm);
-  background: transparent;
-  border: 1px solid var(--codedocs-border);
-  border-radius: var(--codedocs-radius-sm);
-  color: var(--codedocs-text-secondary);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
-
-.codedocs-memo-clear-btn:hover {
-  background: #ef4444;
-  color: white;
-  border-color: #ef4444;
-}
-
-.codedocs-memo-viewer-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--codedocs-spacing-sm);
-}
-
-.codedocs-memo-viewer-item {
-  padding: var(--codedocs-spacing-sm);
   background: var(--codedocs-bg);
-  border: 1px solid var(--codedocs-border);
-  border-radius: var(--codedocs-radius-sm);
+  border: 1px solid var(--codedocs-border-light);
+  border-radius: var(--codedocs-radius-lg);
+  margin-bottom: var(--codedocs-spacing-md);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.codedocs-memo-viewer-time {
-  font-size: 0.75rem;
-  color: var(--codedocs-text-muted);
-  margin-bottom: var(--codedocs-spacing-xs);
+.codedocs-memo-item:hover {
+  box-shadow: var(--codedocs-shadow-md);
 }
 
-.codedocs-memo-viewer-text {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.codedocs-memo-viewer-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--codedocs-spacing-xl);
-  text-align: center;
-}
-
-.codedocs-memo-empty-icon {
-  color: var(--codedocs-text-muted);
+.codedocs-memo-item-meta {
   margin-bottom: var(--codedocs-spacing-sm);
 }
 
-.codedocs-memo-empty-text {
-  color: var(--codedocs-text-muted);
-  font-size: 0.875rem;
-  margin: 0;
+.codedocs-memo-author {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--codedocs-text);
 }
 
-/* ── Memo Source Badges ── */
 .codedocs-memo-source-badge {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: var(--codedocs-radius-sm);
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 .codedocs-memo-badge-shared {
-  background: var(--codedocs-primary);
-  color: white;
+  background: #e1f5fe;
+  color: #0288d1;
 }
 
 .codedocs-memo-badge-personal {
-  background: var(--codedocs-bg-tertiary);
-  color: var(--codedocs-text-secondary);
-  border: 1px solid var(--codedocs-border);
+  background: #f1f3f5;
+  color: #495057;
 }
-
 /* ── Memo Author ── */
 .codedocs-memo-author {
   font-size: 0.75rem;

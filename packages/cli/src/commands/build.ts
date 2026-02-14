@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'fs';
-import { resolve, join, relative, basename, dirname } from 'path';
-import { loadConfig, getStrings } from '@codedocs/core';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
+import { resolve, join, relative, dirname } from 'path';
+import { loadConfig, getStrings, escapeHtml, extractFrontmatter } from '@codedocs/core';
 import type { Locale } from '@codedocs/core';
 import { getCliStrings, t, initLocale } from '../i18n.js';
 import { Marked } from 'marked';
@@ -136,16 +136,20 @@ async function buildStaticSite(docsDir: string, outDir: string, config: any): Pr
     // Rewrite internal .md links to .html and fix directory links
     const rewrittenContent = rewriteInternalLinks(htmlContent, knownSlugs);
     const sanitizedContent = rewrittenContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '').replace(/\bon\w+\s*=/gi, 'data-removed-handler=');
+    const contentWithIds = addHeadingIds(sanitizedContent);
+    const tocHeadings = extractTocHeadings(contentWithIds);
     const basePrefix = getRelativePrefix(page.slug);
-    const sidebarHtml = sidebarStructure
-      ? buildHierarchicalSidebar(sidebarStructure, basePrefix, page.slug)
-      : pages.map(p => `<a href="${basePrefix}${p.slug}.html" class="nav-link">${escapeHtml(p.title)}</a>`).join('\n        ');
+    const navItems = sidebarStructure
+      ? buildTopNav(sidebarStructure, basePrefix, page.slug)
+      : pages.map(p => ({ label: p.title, href: `${basePrefix}${p.slug}.html`, active: p.slug === page.slug }));
     const htmlPage = generateHtmlPage({
       title: page.title,
       projectName,
-      content: sanitizedContent,
-      sidebarHtml,
+      content: contentWithIds,
+      navItems,
+      tocHeadings,
       currentSlug: page.slug,
+      pageId: page.slug,
       locale,
       s,
       basePrefix,
@@ -192,50 +196,111 @@ function collectMarkdownFiles(dir: string): string[] {
   return files;
 }
 
-function extractFrontmatter(content: string): { meta: Record<string, string>; body: string } {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-  if (!match) return { meta: {}, body: content };
-
-  const meta: Record<string, string> = {};
-  for (const line of match[1].split(/\r?\n/)) {
-    const colonIdx = line.indexOf(':');
-    if (colonIdx > 0) {
-      const key = line.slice(0, colonIdx).trim();
-      const value = line.slice(colonIdx + 1).trim().replace(/^["']|["']$/g, '');
-      meta[key] = value;
-    }
-  }
-  return { meta, body: match[2] };
-}
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 function getRelativePrefix(slug: string): string {
   const depth = (slug.match(/\//g) || []).length;
   return depth === 0 ? './' : '../'.repeat(depth);
 }
 
-function buildHierarchicalSidebar(items: any[], basePrefix: string, currentSlug: string): string {
-  let html = '';
+// ── Navigation / TOC types and helpers ──
+
+interface NavItem {
+  label: string;
+  href: string;
+  active: boolean;
+  children?: NavItem[];
+}
+
+interface TocHeading {
+  id: string;
+  text: string;
+  level: number;
+}
+
+function buildTopNav(items: any[], basePrefix: string, currentSlug: string): NavItem[] {
+  const navItems: NavItem[] = [];
   for (const item of items) {
     if (item.type === 'category' && item.items) {
-      html += `<div class="nav-category">\n`;
-      html += `  <div class="nav-category-label">${escapeHtml(item.label)}</div>\n`;
-      for (const child of item.items) {
-        const href = `${basePrefix}${child.id}.html`;
-        const isActive = child.id === currentSlug ? ' active' : '';
-        html += `  <a href="${href}" class="nav-link nav-link-nested${isActive}">${escapeHtml(child.label)}</a>\n`;
+      const children: NavItem[] = item.items.map((child: any) => ({
+        label: child.label,
+        href: `${basePrefix}${child.id}.html`,
+        active: child.id === currentSlug,
+      }));
+      const isActive = children.some(c => c.active);
+      if (children.length === 1) {
+        navItems.push({ label: item.label, href: children[0].href, active: isActive });
+      } else {
+        navItems.push({ label: item.label, href: children[0].href, active: isActive, children });
       }
-      html += `</div>\n`;
     } else {
-      const href = `${basePrefix}${item.id}.html`;
-      const isActive = item.id === currentSlug ? ' active' : '';
-      html += `<a href="${href}" class="nav-link${isActive}">${escapeHtml(item.label)}</a>\n`;
+      navItems.push({
+        label: item.label,
+        href: `${basePrefix}${item.id}.html`,
+        active: item.id === currentSlug,
+      });
     }
   }
-  return html;
+  return navItems;
+}
+
+function addHeadingIds(html: string): string {
+  const usedIds = new Set<string>();
+  return html.replace(/<(h[23])>(.*?)<\/\1>/g, (_match, tag, text) => {
+    const plainText = text.replace(/<[^>]+>/g, '').trim();
+    let id = plainText
+      .toLowerCase()
+      .replace(/[^\w\s-\u3131-\uD79D]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+    if (!id) id = 'heading';
+    let uniqueId = id;
+    let counter = 1;
+    while (usedIds.has(uniqueId)) {
+      uniqueId = `${id}-${counter++}`;
+    }
+    usedIds.add(uniqueId);
+    return `<${tag} id="${uniqueId}">${text}</${tag}>`;
+  });
+}
+
+function extractTocHeadings(html: string): TocHeading[] {
+  const headings: TocHeading[] = [];
+  const regex = /<(h[23])\s+id="([^"]*)">(.*?)<\/\1>/g;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    const level = parseInt(match[1].charAt(1));
+    const id = match[2];
+    const text = match[3].replace(/<[^>]+>/g, '').trim();
+    headings.push({ id, text, level });
+  }
+  return headings;
+}
+
+function buildNavHtml(navItems: NavItem[]): string {
+  return navItems.map(item => {
+    if (item.children) {
+      const childLinks = item.children.map(child =>
+        `<li><a href="${child.href}" class="dropdown-item${child.active ? ' active' : ''}">${escapeHtml(child.label)}</a></li>`
+      ).join('\n');
+      return `<li class="top-nav-item has-dropdown">
+          <button class="top-nav-link${item.active ? ' active' : ''}">${escapeHtml(item.label)} <span class="dropdown-arrow"></span></button>
+          <ul class="dropdown-menu">${childLinks}</ul>
+        </li>`;
+    }
+    return `<li class="top-nav-item"><a href="${item.href}" class="top-nav-link${item.active ? ' active' : ''}">${escapeHtml(item.label)}</a></li>`;
+  }).join('\n');
+}
+
+function buildTocHtml(headings: TocHeading[], s: any): string {
+  if (headings.length === 0) return '';
+  const items = headings.map(h =>
+    `<li class="toc-item toc-h${h.level}"><a href="#${escapeHtml(h.id)}">${escapeHtml(h.text)}</a></li>`
+  ).join('\n');
+  return `<aside class="toc-sidebar">
+    <div class="toc-container">
+      <div class="toc-title">${escapeHtml(s.toc.onThisPage)}</div>
+      <ul class="toc-list">${items}</ul>
+    </div>
+  </aside>`;
 }
 
 function rewriteInternalLinks(html: string, knownSlugs: Set<string>): string {
@@ -264,12 +329,17 @@ function generateHtmlPage(opts: {
   title: string;
   projectName: string;
   content: string;
-  sidebarHtml: string;
+  navItems: NavItem[];
+  tocHeadings: TocHeading[];
   currentSlug: string;
+  pageId: string;
   locale: string;
   s: any;
   basePrefix: string;
 }): string {
+  const navHtml = buildNavHtml(opts.navItems);
+  const tocHtml = buildTocHtml(opts.tocHeadings, opts.s);
+
   return `<!DOCTYPE html>
 <html lang="${opts.locale}" data-theme="light">
 <head>
@@ -288,16 +358,25 @@ function generateHtmlPage(opts: {
   <header class="header">
     <div class="header-inner">
       <a href="${opts.basePrefix}index.html" class="logo">${escapeHtml(opts.projectName)}</a>
-      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-        <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
       </button>
+      <nav class="top-nav" id="topNav">
+        <ul class="top-nav-list">
+          ${navHtml}
+        </ul>
+      </nav>
+      <div class="header-actions">
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
     </div>
   </header>
   <div class="layout">
-    <nav class="sidebar">
-      ${opts.sidebarHtml}
-    </nav>
     <main class="content">
       <article>
         ${opts.content}
@@ -306,32 +385,111 @@ function generateHtmlPage(opts: {
         <p>Generated by <a href="https://github.com/jay05410/codedocs">CodeDocs</a></p>
       </footer>
     </main>
+    ${tocHtml}
   </div>
+
+  <!-- Memo: floating button -->
+  <button class="codedocs-memo-button" id="memoToggleBtn" aria-label="${escapeHtml(opts.s.memo.title)}">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"/>
+    </svg>
+    <span class="codedocs-memo-badge" id="memoBadge" style="display:none">0</span>
+  </button>
+
+  <!-- Memo: panel -->
+  <div class="codedocs-memo-panel" id="memoPanel" style="display:none">
+    <div class="codedocs-memo-panel-header">
+      <h3>${escapeHtml(opts.s.memo.title)}</h3>
+      <button class="codedocs-memo-close" id="memoCloseBtn" aria-label="Close">&times;</button>
+    </div>
+    <div class="codedocs-memo-panel-content">
+      <div class="codedocs-memo-actions">
+        <button class="codedocs-memo-action-btn" id="memoExportBtn">${escapeHtml(opts.s.memo.exportAll)}</button>
+        <button class="codedocs-memo-action-btn" id="memoImportBtn">${escapeHtml(opts.s.memo.import)}</button>
+        <input type="file" id="memoFileInput" accept=".json" style="display:none" aria-label="${escapeHtml(opts.s.memo.importFile)}">
+      </div>
+      <div class="codedocs-memo-editor">
+        <textarea class="codedocs-memo-textarea" id="memoTextarea" placeholder="${escapeHtml(opts.s.memo.placeholder)}" rows="4" aria-label="${escapeHtml(opts.s.memo.editorLabel)}"></textarea>
+        <button class="codedocs-memo-save-btn" id="memoSaveBtn" disabled>${escapeHtml(opts.s.memo.saveMemo)}</button>
+      </div>
+      <div class="codedocs-memo-list" id="memoList"></div>
+    </div>
+  </div>
+
+  <!-- Memo: right-click context menu -->
+  <div class="codedocs-context-menu" id="memoContextMenu" style="display:none">
+    <div class="codedocs-context-menu-item" id="memoContextAdd">${escapeHtml(opts.s.memo.contextAddMemo)}</div>
+  </div>
+
   <script>
+    // Theme toggle
     function toggleTheme() {
-      const html = document.documentElement;
-      const current = html.getAttribute('data-theme');
-      const next = current === 'dark' ? 'light' : 'dark';
+      var html = document.documentElement;
+      var current = html.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
       html.setAttribute('data-theme', next);
       localStorage.setItem('codedocs-theme', next);
     }
-    // Restore theme
-    const saved = localStorage.getItem('codedocs-theme');
-    if (saved) document.documentElement.setAttribute('data-theme', saved);
-    else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
-    // Active nav link
-    const current = location.pathname.split('/').pop()?.replace('.html', '');
-    document.querySelectorAll('.nav-link').forEach(a => {
-      if (a.getAttribute('href')?.includes(current + '.html')) a.classList.add('active');
+    (function() {
+      var saved = localStorage.getItem('codedocs-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+      else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+
+    // Mobile menu toggle
+    document.getElementById('mobileMenuToggle').addEventListener('click', function() {
+      document.getElementById('topNav').classList.toggle('open');
     });
+
+    // Top nav dropdowns
+    document.querySelectorAll('.has-dropdown').forEach(function(item) {
+      var btn = item.querySelector('.top-nav-link');
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var isOpen = item.classList.contains('open');
+        document.querySelectorAll('.has-dropdown.open').forEach(function(el) { el.classList.remove('open'); });
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+    document.addEventListener('click', function() {
+      document.querySelectorAll('.has-dropdown.open').forEach(function(el) { el.classList.remove('open'); });
+    });
+
+    // TOC scroll spy
+    (function() {
+      var tocLinks = document.querySelectorAll('.toc-item a');
+      var headings = [];
+      tocLinks.forEach(function(link) {
+        var id = link.getAttribute('href');
+        if (!id) return;
+        var el = document.getElementById(id.slice(1));
+        if (el) headings.push({ el: el, link: link });
+      });
+      if (headings.length === 0) return;
+      function onScroll() {
+        var scrollTop = window.scrollY + 100;
+        var active = null;
+        for (var i = headings.length - 1; i >= 0; i--) {
+          if (headings[i].el.offsetTop <= scrollTop) {
+            active = headings[i];
+            break;
+          }
+        }
+        tocLinks.forEach(function(l) { l.parentElement.classList.remove('active'); });
+        if (active) active.link.parentElement.classList.add('active');
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    })();
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
   <script>
     hljs.highlightAll();
-    const observer = new MutationObserver(() => {
-      document.querySelectorAll('link[href*="highlight"]').forEach(link => {
+    var observer = new MutationObserver(function() {
+      document.querySelectorAll('link[href*="highlight"]').forEach(function(link) {
         if (link.media.includes('light')) {
           link.media = document.documentElement.dataset.theme === 'dark' ? 'not all' : 'all';
         } else {
@@ -342,33 +500,30 @@ function generateHtmlPage(opts: {
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     // Mermaid copy buttons
-    document.querySelectorAll('.mermaid-copy-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+    document.querySelectorAll('.mermaid-copy-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
         e.stopPropagation();
-        const src = atob(btn.dataset.source);
-        try {
-          await navigator.clipboard.writeText(src);
-          const orig = btn.innerHTML;
+        var src = atob(btn.dataset.source);
+        navigator.clipboard.writeText(src).then(function() {
+          var orig = btn.innerHTML;
           btn.innerHTML = '<span class="mermaid-copied">Copied!</span>';
           btn.classList.add('copied');
-          setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1500);
-        } catch { /* clipboard not available */ }
+          setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1500);
+        }).catch(function() {});
       });
     });
 
     // Mermaid expand buttons
-    document.querySelectorAll('.mermaid-expand-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    document.querySelectorAll('.mermaid-expand-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
         e.stopPropagation();
-        const wrapper = btn.closest('.mermaid-wrapper');
-        const svgEl = wrapper.querySelector('.mermaid svg');
+        var wrapper = btn.closest('.mermaid-wrapper');
+        var svgEl = wrapper.querySelector('.mermaid svg');
         if (!svgEl) return;
-        const svgMarkup = svgEl.outerHTML;
-
-        const overlay = document.createElement('div');
+        var svgMarkup = svgEl.outerHTML;
+        var overlay = document.createElement('div');
         overlay.className = 'mermaid-overlay';
-        let zoom = 100;
-
+        var zoom = 100;
         overlay.innerHTML =
           '<div class="mermaid-popup">' +
             '<div class="mermaid-popup-header">' +
@@ -385,42 +540,227 @@ function generateHtmlPage(opts: {
               '<div class="mermaid-popup-content" style="transform:scale(1)">' + svgMarkup + '</div>' +
             '</div>' +
           '</div>';
-
         document.body.appendChild(overlay);
-        requestAnimationFrame(() => overlay.classList.add('active'));
-
-        const content = overlay.querySelector('.mermaid-popup-content');
-        const levelEl = overlay.querySelector('.mermaid-zoom-level');
-        const popupSvg = content.querySelector('svg');
-        if (popupSvg) {
-          popupSvg.style.maxWidth = 'none';
-          popupSvg.style.maxHeight = 'none';
-        }
-
-        overlay.querySelector('[data-action="in"]').addEventListener('click', () => {
+        requestAnimationFrame(function() { overlay.classList.add('active'); });
+        var content = overlay.querySelector('.mermaid-popup-content');
+        var levelEl = overlay.querySelector('.mermaid-zoom-level');
+        var popupSvg = content.querySelector('svg');
+        if (popupSvg) { popupSvg.style.maxWidth = 'none'; popupSvg.style.maxHeight = 'none'; }
+        overlay.querySelector('[data-action="in"]').addEventListener('click', function() {
           zoom = Math.min(zoom + 10, 200);
           content.style.transform = 'scale(' + (zoom / 100) + ')';
           levelEl.textContent = zoom + '%';
         });
-        overlay.querySelector('[data-action="out"]').addEventListener('click', () => {
+        overlay.querySelector('[data-action="out"]').addEventListener('click', function() {
           zoom = Math.max(zoom - 10, 10);
           content.style.transform = 'scale(' + (zoom / 100) + ')';
           levelEl.textContent = zoom + '%';
         });
-
-        const closePopup = () => {
+        var closePopup = function() {
           overlay.classList.remove('active');
-          setTimeout(() => overlay.remove(), 200);
+          setTimeout(function() { overlay.remove(); }, 200);
         };
         overlay.querySelector('.mermaid-close-btn').addEventListener('click', closePopup);
-        overlay.addEventListener('click', (ev) => {
-          if (ev.target === overlay) closePopup();
-        });
+        overlay.addEventListener('click', function(ev) { if (ev.target === overlay) closePopup(); });
         document.addEventListener('keydown', function esc(ev) {
           if (ev.key === 'Escape') { closePopup(); document.removeEventListener('keydown', esc); }
         });
       });
     });
+  </script>
+  <script>
+    // Memo System (i18n)
+    (function() {
+      var PAGE_ID = ${JSON.stringify(opts.pageId)};
+      var STORAGE_PREFIX = 'codedocs-memos-';
+      var AUTHOR_KEY = 'codedocs-memo-author';
+      var STRINGS = ${JSON.stringify(opts.s.memo)};
+
+      var toggleBtn = document.getElementById('memoToggleBtn');
+      var badge = document.getElementById('memoBadge');
+      var panel = document.getElementById('memoPanel');
+      var closeBtn = document.getElementById('memoCloseBtn');
+      var textarea = document.getElementById('memoTextarea');
+      var saveBtn = document.getElementById('memoSaveBtn');
+      var memoList = document.getElementById('memoList');
+      var exportBtn = document.getElementById('memoExportBtn');
+      var importBtn = document.getElementById('memoImportBtn');
+      var fileInput = document.getElementById('memoFileInput');
+      var contextMenu = document.getElementById('memoContextMenu');
+      var contextAdd = document.getElementById('memoContextAdd');
+      var selectedQuote = '';
+
+      function getAuthor() {
+        try { return localStorage.getItem(AUTHOR_KEY) || ''; } catch(e) { return ''; }
+      }
+      function promptAuthor() {
+        var existing = getAuthor();
+        if (existing) return existing;
+        var name = (window.prompt(STRINGS.enterName) || '').trim() || 'Anonymous';
+        try { localStorage.setItem(AUTHOR_KEY, name); } catch(e) {}
+        return name;
+      }
+      function loadMemos(pageId) {
+        try {
+          var stored = localStorage.getItem(STORAGE_PREFIX + pageId);
+          if (!stored) return [];
+          var parsed = JSON.parse(stored);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch(e) { return []; }
+      }
+      function saveMemos(pageId, memos) {
+        try { localStorage.setItem(STORAGE_PREFIX + pageId, JSON.stringify(memos)); } catch(e) {}
+      }
+      function formatTimestamp(iso) {
+        var d = new Date(iso);
+        return d.toLocaleString(undefined, { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      }
+      function updateBadge() {
+        var memos = loadMemos(PAGE_ID);
+        if (memos.length > 0) { badge.textContent = memos.length; badge.style.display = 'flex'; }
+        else { badge.style.display = 'none'; }
+      }
+      function renderMemos() {
+        var memos = loadMemos(PAGE_ID);
+        memos.sort(function(a,b) { return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); });
+        memoList.innerHTML = '';
+        if (memos.length === 0) {
+          memoList.innerHTML = '<div class="codedocs-memo-empty">' + STRINGS.noMemos + '</div>';
+          updateBadge();
+          return;
+        }
+        memos.forEach(function(memo) {
+          var item = document.createElement('div');
+          item.className = 'codedocs-memo-item';
+          var header = document.createElement('div');
+          header.className = 'codedocs-memo-item-header';
+          var meta = document.createElement('div');
+          meta.className = 'codedocs-memo-item-meta';
+          var author = document.createElement('span');
+          author.className = 'codedocs-memo-author';
+          author.textContent = memo.author || 'Anonymous';
+          var ts = document.createElement('span');
+          ts.className = 'codedocs-memo-timestamp';
+          ts.textContent = formatTimestamp(memo.createdAt);
+          meta.appendChild(author);
+          meta.appendChild(ts);
+          header.appendChild(meta);
+          var delBtn = document.createElement('button');
+          delBtn.className = 'codedocs-memo-delete-btn';
+          delBtn.innerHTML = '&times;';
+          delBtn.setAttribute('aria-label', STRINGS.deleteMemo);
+          delBtn.addEventListener('click', function() { deleteMemo(memo.id); });
+          header.appendChild(delBtn);
+          var text = document.createElement('div');
+          text.className = 'codedocs-memo-text';
+          text.textContent = memo.text;
+          item.appendChild(header);
+          item.appendChild(text);
+          memoList.appendChild(item);
+        });
+        updateBadge();
+      }
+      function addMemo(text) {
+        if (!text.trim()) return;
+        var author = promptAuthor();
+        var memo = {
+          id: 'memo-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11),
+          pageId: PAGE_ID, text: text.trim(), author: author,
+          createdAt: new Date().toISOString()
+        };
+        var memos = loadMemos(PAGE_ID);
+        memos.push(memo);
+        saveMemos(PAGE_ID, memos);
+        renderMemos();
+        textarea.value = '';
+        saveBtn.disabled = true;
+      }
+      function deleteMemo(id) {
+        var memos = loadMemos(PAGE_ID).filter(function(m) { return m.id !== id; });
+        saveMemos(PAGE_ID, memos);
+        renderMemos();
+      }
+      function exportAllMemos() {
+        var store = { version: 1, memos: {} };
+        try {
+          for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i);
+            if (!key || key.indexOf(STORAGE_PREFIX) !== 0) continue;
+            var pid = key.slice(STORAGE_PREFIX.length);
+            var raw = localStorage.getItem(key);
+            if (!raw) continue;
+            try { var parsed = JSON.parse(raw); if (Array.isArray(parsed) && parsed.length > 0) store.memos[pid] = parsed; } catch(e) {}
+          }
+        } catch(e) {}
+        var blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a'); a.href = url; a.download = 'memos.json'; a.click();
+        URL.revokeObjectURL(url);
+      }
+      function importMemos(file) {
+        var reader = new FileReader();
+        reader.onload = function() {
+          try {
+            var imported = JSON.parse(reader.result);
+            if (!imported || !imported.memos) return;
+            for (var pageId in imported.memos) {
+              var newMemos = imported.memos[pageId];
+              if (!Array.isArray(newMemos)) continue;
+              var existing = loadMemos(pageId);
+              var existingIds = {};
+              existing.forEach(function(m) { existingIds[m.id] = true; });
+              var added = newMemos.filter(function(m) { return !existingIds[m.id]; });
+              if (added.length > 0) saveMemos(pageId, existing.concat(added));
+            }
+            renderMemos();
+          } catch(e) { console.error('Failed to import memos:', e); }
+        };
+        reader.readAsText(file);
+      }
+      toggleBtn.addEventListener('click', function() {
+        var isOpen = panel.style.display !== 'none';
+        panel.style.display = isOpen ? 'none' : 'flex';
+        if (!isOpen) renderMemos();
+      });
+      closeBtn.addEventListener('click', function() { panel.style.display = 'none'; });
+      textarea.addEventListener('input', function() { saveBtn.disabled = !textarea.value.trim(); });
+      saveBtn.addEventListener('click', function() { addMemo(textarea.value); });
+      textarea.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') addMemo(textarea.value);
+      });
+      exportBtn.addEventListener('click', exportAllMemos);
+      importBtn.addEventListener('click', function() { fileInput.click(); });
+      fileInput.addEventListener('change', function(e) {
+        var file = e.target.files && e.target.files[0];
+        if (file) importMemos(file);
+        e.target.value = '';
+      });
+      var article = document.querySelector('article');
+      if (article) {
+        article.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          selectedQuote = (window.getSelection() || '').toString().trim();
+          contextMenu.style.display = 'block';
+          contextMenu.style.left = e.pageX + 'px';
+          contextMenu.style.top = e.pageY + 'px';
+        });
+      }
+      contextAdd.addEventListener('click', function() {
+        contextMenu.style.display = 'none';
+        panel.style.display = 'flex';
+        renderMemos();
+        if (selectedQuote) { textarea.value = '> ' + selectedQuote + '\\n\\n'; saveBtn.disabled = false; }
+        textarea.focus();
+      });
+      document.addEventListener('click', function() { contextMenu.style.display = 'none'; });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          contextMenu.style.display = 'none';
+          if (panel.style.display !== 'none' && !textarea.value.trim()) panel.style.display = 'none';
+        }
+      });
+      updateBadge();
+    })();
   </script>
 </body>
 </html>`;
@@ -442,7 +782,6 @@ function getStylesheet(): string {
   --primary-light: #ddf4ff;
   --primary-subtle: #f0f7ff;
   --code-bg: #f6f8fa;
-  --sidebar-bg: #f6f8fa;
   --header-bg: #ffffff;
   --shadow: 0 1px 2px rgba(31,35,40,0.04), 0 1px 3px rgba(31,35,40,0.08);
   --shadow-md: 0 3px 6px rgba(31,35,40,0.08), 0 2px 4px rgba(31,35,40,0.06);
@@ -463,7 +802,6 @@ function getStylesheet(): string {
   --primary-light: #0d2746;
   --primary-subtle: #0d1d31;
   --code-bg: #161b22;
-  --sidebar-bg: #0d1117;
   --header-bg: #161b22;
   --shadow: 0 1px 3px rgba(0,0,0,0.2);
   --shadow-md: 0 3px 6px rgba(0,0,0,0.3);
@@ -481,6 +819,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* ── Header ── */
 .header {
   position: sticky;
   top: 0;
@@ -497,7 +837,7 @@ body {
   height: 56px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 1.5rem;
 }
 .logo {
   font-size: 1.2rem;
@@ -505,8 +845,14 @@ body {
   color: var(--text);
   text-decoration: none;
   letter-spacing: -0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .logo:hover { color: var(--primary); }
+.header-actions {
+  margin-left: auto;
+  flex-shrink: 0;
+}
 .theme-toggle {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -521,57 +867,119 @@ body {
 .theme-toggle:hover { color: var(--text); border-color: var(--text-muted); }
 [data-theme="light"] .moon-icon { display: none; }
 [data-theme="dark"] .sun-icon { display: none; }
+
+/* ── Top Navigation ── */
+.top-nav {
+  flex: 1;
+  min-width: 0;
+}
+.top-nav-list {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.top-nav-list::-webkit-scrollbar { display: none; }
+.top-nav-item {
+  position: relative;
+  flex-shrink: 0;
+}
+.top-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s, background 0.12s;
+  font-family: inherit;
+}
+.top-nav-link:hover {
+  color: var(--text);
+  background: var(--bg-tertiary);
+}
+.top-nav-link.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+.dropdown-arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid currentColor;
+  margin-left: 2px;
+  transition: transform 0.15s;
+}
+.has-dropdown.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 180px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 4px 0;
+  z-index: 200;
+  list-style: none;
+  margin-top: 4px;
+}
+.has-dropdown.open .dropdown-menu {
+  display: block;
+}
+.dropdown-item {
+  display: block;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+.dropdown-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text);
+}
+.dropdown-item.active {
+  color: var(--primary);
+  font-weight: 600;
+  background: var(--primary-subtle);
+}
+
+/* ── Mobile hamburger ── */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.mobile-menu-toggle:hover { color: var(--text); border-color: var(--text-muted); }
+
+/* ── Layout ── */
 .layout {
   display: flex;
   max-width: 1400px;
   margin: 0 auto;
   min-height: calc(100vh - 56px);
-}
-.sidebar {
-  width: 260px;
-  min-width: 260px;
-  padding: 1rem 0.75rem;
-  border-right: 1px solid var(--border-light);
-  background: var(--sidebar-bg);
-  position: sticky;
-  top: 56px;
-  height: calc(100vh - 56px);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-.sidebar::-webkit-scrollbar { width: 4px; }
-.sidebar::-webkit-scrollbar-track { background: transparent; }
-.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-.nav-link {
-  display: block;
-  padding: 0.4rem 0.75rem;
-  margin: 1px 0;
-  color: var(--text-secondary);
-  text-decoration: none;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  transition: all 0.12s ease;
-  border: 1px solid transparent;
-}
-.nav-category { margin: 0.5rem 0 0.25rem; }
-.nav-category:first-child { margin-top: 0; }
-.nav-category-label {
-  padding: 0.35rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-top: 0.5rem;
-}
-.nav-link-nested { padding-left: 1.25rem; font-size: 0.84rem; }
-.nav-link:hover { background: var(--bg-tertiary); color: var(--text); }
-.nav-link.active {
-  background: var(--primary-subtle);
-  color: var(--primary);
-  font-weight: 600;
-  border-color: var(--primary-light);
 }
 .content {
   flex: 1;
@@ -579,6 +987,60 @@ body {
   max-width: 880px;
   min-width: 0;
 }
+
+/* ── TOC Sidebar ── */
+.toc-sidebar {
+  width: 220px;
+  min-width: 220px;
+  padding: 2rem 1rem 2rem 0;
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  flex-shrink: 0;
+}
+.toc-sidebar::-webkit-scrollbar { width: 4px; }
+.toc-sidebar::-webkit-scrollbar-track { background: transparent; }
+.toc-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.toc-container {
+  border-left: 1px solid var(--border-light);
+  padding-left: 1rem;
+}
+.toc-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+.toc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.toc-item {
+  margin: 0;
+}
+.toc-item a {
+  display: block;
+  padding: 3px 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  line-height: 1.5;
+  transition: color 0.12s;
+}
+.toc-item a:hover { color: var(--text); }
+.toc-item.active a {
+  color: var(--primary);
+  font-weight: 600;
+}
+.toc-h3 { padding-left: 0.75rem; }
+
+/* ── Article ── */
 article h1 {
   font-size: 2rem;
   font-weight: 700;
@@ -678,7 +1140,7 @@ article summary:hover { color: var(--text); }
 article hr { border: none; border-top: 1px solid var(--border-light); margin: 2rem 0; }
 article strong { font-weight: 600; }
 
-/* Mermaid wrapper */
+/* ── Mermaid wrapper ── */
 .mermaid-wrapper {
   position: relative;
   margin: 1.5rem 0;
@@ -725,7 +1187,7 @@ article strong { font-weight: 600; }
 }
 .mermaid-copied { font-size: 0.75rem; font-weight: 600; padding: 0 2px; }
 
-/* Mermaid popup overlay */
+/* ── Mermaid popup overlay ── */
 .mermaid-overlay {
   position: fixed;
   inset: 0;
@@ -812,6 +1274,7 @@ article strong { font-weight: 600; }
 }
 .mermaid-popup-content svg { max-width: none; max-height: none; }
 
+/* ── Footer ── */
 .footer {
   margin-top: 3rem;
   padding-top: 1.5rem;
@@ -821,10 +1284,303 @@ article strong { font-weight: 600; }
 }
 .footer a { color: var(--text-secondary); text-decoration: none; }
 .footer a:hover { color: var(--primary); }
+
+/* ── Memo Button ── */
+.codedocs-memo-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+  z-index: 100;
+}
+.codedocs-memo-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+.codedocs-memo-button:active { transform: scale(0.95); }
+
+.codedocs-memo-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border: 2px solid var(--bg);
+}
+
+/* ── Memo Panel ── */
+.codedocs-memo-panel {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 400px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+  animation: memoSlideUp 0.3s ease-out;
+}
+@keyframes memoSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.codedocs-memo-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.codedocs-memo-panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.codedocs-memo-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.codedocs-memo-close:hover {
+  background: var(--bg-tertiary);
+  color: var(--text);
+}
+.codedocs-memo-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+.codedocs-memo-actions {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+.codedocs-memo-action-btn {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.codedocs-memo-action-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--primary);
+  color: var(--text);
+}
+.codedocs-memo-editor { margin-bottom: 16px; }
+.codedocs-memo-textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+.codedocs-memo-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.codedocs-memo-save-btn {
+  width: 100%;
+  padding: 8px 16px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.codedocs-memo-save-btn:hover:not(:disabled) { opacity: 0.9; }
+.codedocs-memo-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Memo List ── */
+.codedocs-memo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.codedocs-memo-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 1.5rem 0;
+}
+.codedocs-memo-item {
+  padding: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.codedocs-memo-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.codedocs-memo-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.codedocs-memo-author {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.codedocs-memo-timestamp {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.codedocs-memo-delete-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.2s, color 0.2s;
+}
+.codedocs-memo-delete-btn:hover {
+  background: var(--bg-tertiary);
+  color: #ef4444;
+}
+.codedocs-memo-text {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Context Menu ── */
+.codedocs-context-menu {
+  position: absolute;
+  z-index: 9999;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  min-width: 160px;
+  padding: 4px 0;
+}
+.codedocs-context-menu-item {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.codedocs-context-menu-item:hover {
+  background: var(--primary-subtle);
+  color: var(--primary);
+}
+
+/* ── Dark mode shadows ── */
+[data-theme="dark"] .codedocs-memo-button {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .codedocs-memo-button:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .codedocs-memo-panel {
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .codedocs-context-menu {
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Responsive: hide TOC below 1100px ── */
+@media (max-width: 1100px) {
+  .toc-sidebar { display: none; }
+  .content { max-width: 100%; }
+}
+
+/* ── Responsive: hamburger menu below 768px ── */
 @media (max-width: 768px) {
-  .sidebar { display: none; }
+  .mobile-menu-toggle { display: flex; }
+  .top-nav {
+    display: none;
+    position: absolute;
+    top: 56px;
+    left: 0;
+    right: 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    padding: 0.5rem;
+    z-index: 99;
+  }
+  .top-nav.open { display: block; }
+  .top-nav-list {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .top-nav-link {
+    width: 100%;
+    padding: 8px 12px;
+  }
+  .dropdown-menu {
+    position: static;
+    box-shadow: none;
+    border: none;
+    margin-top: 0;
+    padding-left: 1rem;
+    background: transparent;
+  }
+  .has-dropdown.open .dropdown-menu { display: block; }
   .content { padding: 1.25rem 1rem; }
   .header-inner { padding: 0 1rem; }
+  .toc-sidebar { display: none; }
 }
 `;
 }

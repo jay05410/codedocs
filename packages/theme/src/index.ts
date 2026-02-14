@@ -1,11 +1,11 @@
 // @codedocs/theme - Default theme for CodeDocs
-export { default as Layout, type LayoutProps, type SidebarSection, type SidebarLink } from './app/Layout.js';
+export { default as Layout, type LayoutProps, type NavSection, type NavLink } from './app/Layout.js';
 export { Sidebar, type SidebarProps } from './components/Sidebar.js';
 export { SearchBar, type SearchBarProps } from './components/SearchBar.js';
 export { ApiEndpointCard, type ApiEndpointCardProps } from './components/ApiEndpointCard.js';
 export { EntityCard, type EntityCardProps } from './components/EntityCard.js';
 export { MermaidChart, type MermaidChartProps } from './components/MermaidChart.js';
-export { MemoButton, type MemoButtonProps } from './components/MemoButton.js';
+export { MemoPanel, type MemoPanelProps } from './components/MemoPanel.js';
 export { MemoViewer, type MemoViewerProps } from './components/MemoViewer.js';
 export {
   ApiPlayground,

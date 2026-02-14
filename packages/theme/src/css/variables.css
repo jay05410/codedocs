@@ -18,36 +18,19 @@
   --codedocs-border: #dadde1;
   --codedocs-border-light: #ebedf0;
 
-  /* ── Sidebar ── */
-  --codedocs-sidebar-width: 280px;
-  --codedocs-sidebar-bg: var(--codedocs-bg);
-  --codedocs-sidebar-border: var(--codedocs-border-light);
-
-  /* ── Header ── */
-  --codedocs-header-height: 56px;
+  /* ── Layout ── */
+  --codedocs-content-max-width: 860px;
+  --codedocs-toc-width: 240px;
+  --codedocs-header-height: 64px;
   --codedocs-header-bg: var(--codedocs-bg);
 
-  /* ── API Method Colors ── */
-  --codedocs-method-get: #61affe;
-  --codedocs-method-post: #49cc90;
-  --codedocs-method-put: #fca130;
-  --codedocs-method-delete: #f93e3e;
-  --codedocs-method-patch: #50e3c2;
-  --codedocs-method-query: #61affe;
-  --codedocs-method-mutation: #49cc90;
-  --codedocs-method-subscription: #fca130;
-
-  /* ── Code ── */
-  --codedocs-code-bg: #f6f8fa;
-  --codedocs-code-border: #e1e4e8;
-
   /* ── Spacing ── */
-  --codedocs-content-max-width: 860px;
   --codedocs-spacing-xs: 4px;
   --codedocs-spacing-sm: 8px;
   --codedocs-spacing-md: 16px;
   --codedocs-spacing-lg: 24px;
   --codedocs-spacing-xl: 32px;
+  --codedocs-spacing-2xl: 48px;
 
   /* ── Radius ── */
   --codedocs-radius-sm: 4px;
