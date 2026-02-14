@@ -65,6 +65,8 @@ export default {
     provider: 'openai',        // openai | claude | gemini | glm | ollama | custom | codex-cli | gemini-cli
     model: 'gpt-5.2',
     apiKey: process.env.OPENAI_API_KEY,
+    timeout: 60000,            // 선택: 요청 타임아웃(ms)
+    maxRetries: 1,             // 선택: 일시적 오류 재시도 횟수
     features: {
       domainGrouping: true,    // 도메인별 엔드포인트 그룹핑
       flowDiagrams: true,      // Mermaid 다이어그램 생성
@@ -184,7 +186,7 @@ npm install -g @google/gemini-cli  # 이후: gemini auth login
 
 ### Tree-sitter AST 파싱
 
-정규식 기반 파서보다 높은 정확도를 위한 선택적 AST 기반 파싱 엔진입니다. [Tree-sitter](https://tree-sitter.github.io/) WASM을 사용하며 9개 언어를 지원합니다: TypeScript, TSX, Python, Go, Java, Kotlin, PHP, C, C++.
+정규식 기반 파서보다 높은 정확도를 위한 선택적 AST 기반 파싱 엔진입니다. [Tree-sitter](https://tree-sitter.github.io/) WASM을 사용하며 13개 언어를 지원합니다: TypeScript, TSX, JavaScript, JSX, Python, Go, Java, Kotlin, PHP, C, C++, HTML, CSS.
 
 ```bash
 # 선택적 의존성 설치
@@ -343,7 +345,7 @@ npx turbo run dev
 |------|------|
 | 모노레포 | Turborepo + npm 워크스페이스 |
 | 언어 | TypeScript (strict) |
-| 정적 빌드 | Marked (HTML 렌더링) |
+| 정적 빌드 | Vite + unified (remark/rehype) |
 | 마크다운 | unified (remark + rehype) |
 | 코드 하이라이팅 | Shiki |
 | 검색 | Pagefind |

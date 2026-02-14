@@ -65,6 +65,8 @@ export default {
     provider: 'openai',        // openai | claude | gemini | glm | ollama | custom | codex-cli | gemini-cli
     model: 'gpt-5.2',
     apiKey: process.env.OPENAI_API_KEY,
+    timeout: 60000,            // optional: request timeout in ms
+    maxRetries: 1,             // optional: retry count for transient errors
     features: {
       domainGrouping: true,
       flowDiagrams: true,
@@ -183,7 +185,7 @@ npm install -g @google/gemini-cli  # then: gemini auth login
 
 ### Tree-sitter AST Parsing
 
-Optional AST-based parsing engine using [Tree-sitter](https://tree-sitter.github.io/) WASM for higher accuracy than regex-based parsers. Supports 9 languages: TypeScript, TSX, Python, Go, Java, Kotlin, PHP, C, C++.
+Optional AST-based parsing engine using [Tree-sitter](https://tree-sitter.github.io/) WASM for higher accuracy than regex-based parsers. Supports 13 languages: TypeScript, TSX, JavaScript, JSX, Python, Go, Java, Kotlin, PHP, C, C++, HTML, CSS.
 
 ```bash
 # Install optional dependency
@@ -331,7 +333,7 @@ npx turbo run dev
 |------|-----------|
 | Monorepo | Turborepo + npm workspaces |
 | Language | TypeScript (strict) |
-| SSG | Vite + marked |
+| SSG | Vite + unified (remark/rehype) |
 | Markdown | unified (remark + rehype) |
 | Code Highlighting | Shiki |
 | Search | Pagefind |
