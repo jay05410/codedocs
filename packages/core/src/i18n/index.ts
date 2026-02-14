@@ -110,6 +110,18 @@ export interface I18nStrings {
     confirmClear: string;
     enterName: string;
     contextAddMemo: string;
+    allPages: string;
+    thisPage: string;
+    toggleVisibility: string;
+    category: string;
+    target: string;
+    important: string;
+    add: string;
+    modify: string;
+    delete: string;
+    other: string;
+    minimize: string;
+    finishEditing: string;
   };
   // Navigation
   nav: {
@@ -409,6 +421,18 @@ const en: I18nStrings = {
     confirmClear: 'Clear all personal memos for this page? Shared memos will remain.',
     enterName: 'Enter your name for memos:',
     contextAddMemo: 'Add Memo',
+    allPages: 'All Pages',
+    thisPage: 'This Page',
+    toggleVisibility: 'Toggle memo visibility',
+    category: 'Category',
+    target: 'Target',
+    important: 'Important',
+    add: 'Add',
+    modify: 'Modify',
+    delete: 'Delete',
+    other: 'Other',
+    minimize: 'Minimize',
+    finishEditing: 'Finish editing (Ctrl+Enter)',
   },
   nav: {
     toggleMenu: 'Toggle menu',
@@ -683,6 +707,18 @@ const ko: I18nStrings = {
     confirmClear: '이 페이지의 모든 개인 메모를 삭제하시겠습니까? 공유 메모는 유지됩니다.',
     enterName: '메모에 사용할 이름을 입력하세요:',
     contextAddMemo: '메모 추가',
+    allPages: '전체 페이지',
+    thisPage: '이 페이지',
+    toggleVisibility: '메모 표시 전환',
+    category: '분류',
+    target: '대상',
+    important: '중요',
+    add: '추가',
+    modify: '수정',
+    delete: '삭제',
+    other: '기타',
+    minimize: '최소화',
+    finishEditing: '편집 완료 (Ctrl+Enter)',
   },
   nav: {
     toggleMenu: '메뉴 토글',
@@ -957,6 +993,18 @@ const ja: I18nStrings = {
     confirmClear: 'このページのすべての個人メモを削除しますか？共有メモは残ります。',
     enterName: 'メモの名前を入力してください：',
     contextAddMemo: 'メモ追加',
+    allPages: '全ページ',
+    thisPage: 'このページ',
+    toggleVisibility: 'メモ表示切替',
+    category: 'カテゴリ',
+    target: '対象',
+    important: '重要',
+    add: '追加',
+    modify: '修正',
+    delete: '削除',
+    other: 'その他',
+    minimize: '最小化',
+    finishEditing: '編集完了 (Ctrl+Enter)',
   },
   nav: {
     toggleMenu: 'メニュー切替',
@@ -1231,6 +1279,18 @@ const zh: I18nStrings = {
     confirmClear: '是否清除此页面的所有个人备忘？共享备忘将保留。',
     enterName: '请输入您的备忘名称：',
     contextAddMemo: '添加备忘',
+    allPages: '所有页面',
+    thisPage: '此页面',
+    toggleVisibility: '切换备注显示',
+    category: '分类',
+    target: '目标',
+    important: '重要',
+    add: '添加',
+    modify: '修改',
+    delete: '删除',
+    other: '其他',
+    minimize: '最小化',
+    finishEditing: '完成编辑 (Ctrl+Enter)',
   },
   nav: {
     toggleMenu: '切换菜单',

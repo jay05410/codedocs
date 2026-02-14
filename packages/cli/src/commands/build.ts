@@ -388,37 +388,43 @@ function generateHtmlPage(opts: {
     ${tocHtml}
   </div>
 
-  <!-- Memo: floating button -->
-  <button class="codedocs-memo-button" id="memoToggleBtn" aria-label="${escapeHtml(opts.s.memo.title)}">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"/>
-    </svg>
-    <span class="codedocs-memo-badge" id="memoBadge" style="display:none">0</span>
-  </button>
-
-  <!-- Memo: panel -->
-  <div class="codedocs-memo-panel" id="memoPanel" style="display:none">
-    <div class="codedocs-memo-panel-header">
-      <h3>${escapeHtml(opts.s.memo.title)}</h3>
-      <button class="codedocs-memo-close" id="memoCloseBtn" aria-label="Close">&times;</button>
-    </div>
-    <div class="codedocs-memo-panel-content">
-      <div class="codedocs-memo-actions">
-        <button class="codedocs-memo-action-btn" id="memoExportBtn">${escapeHtml(opts.s.memo.exportAll)}</button>
-        <button class="codedocs-memo-action-btn" id="memoImportBtn">${escapeHtml(opts.s.memo.import)}</button>
-        <input type="file" id="memoFileInput" accept=".json" style="display:none" aria-label="${escapeHtml(opts.s.memo.importFile)}">
-      </div>
-      <div class="codedocs-memo-editor">
-        <textarea class="codedocs-memo-textarea" id="memoTextarea" placeholder="${escapeHtml(opts.s.memo.placeholder)}" rows="4" aria-label="${escapeHtml(opts.s.memo.editorLabel)}"></textarea>
-        <button class="codedocs-memo-save-btn" id="memoSaveBtn" disabled>${escapeHtml(opts.s.memo.saveMemo)}</button>
-      </div>
-      <div class="codedocs-memo-list" id="memoList"></div>
-    </div>
-  </div>
+  <!-- Memo: sticky notes container -->
+  <div id="memoStickyContainer"></div>
 
   <!-- Memo: right-click context menu -->
   <div class="codedocs-context-menu" id="memoContextMenu" style="display:none">
     <div class="codedocs-context-menu-item" id="memoContextAdd">${escapeHtml(opts.s.memo.contextAddMemo)}</div>
+  </div>
+
+  <!-- Memo: bottom-right controls -->
+  <div class="codedocs-memo-controls">
+    <button class="codedocs-memo-visibility-btn" id="memoVisibilityBtn" aria-label="${escapeHtml(opts.s.memo.toggleVisibility)}" title="${escapeHtml(opts.s.memo.toggleVisibility)}">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    <button class="codedocs-memo-button" id="memoToggleBtn" aria-label="${escapeHtml(opts.s.memo.title)}">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"/>
+      </svg>
+      <span class="codedocs-memo-badge" id="memoBadge" style="display:none">0</span>
+    </button>
+  </div>
+
+  <!-- Memo: manager panel -->
+  <div class="codedocs-memo-panel" id="memoPanel" style="display:none">
+    <div class="codedocs-memo-panel-header">
+      <h3>${escapeHtml(opts.s.memo.title)}</h3>
+      <div class="codedocs-memo-panel-actions">
+        <button class="codedocs-memo-action-btn" id="memoExportBtn">${escapeHtml(opts.s.memo.exportAll)}</button>
+        <button class="codedocs-memo-action-btn" id="memoImportBtn">${escapeHtml(opts.s.memo.import)}</button>
+        <input type="file" id="memoFileInput" accept=".json" style="display:none" aria-label="${escapeHtml(opts.s.memo.importFile)}">
+      </div>
+      <button class="codedocs-memo-close" id="memoCloseBtn" aria-label="Close">&times;</button>
+    </div>
+    <div class="codedocs-memo-panel-filters">
+      <button class="codedocs-memo-filter-btn active" id="memoFilterThis">${escapeHtml(opts.s.memo.thisPage)}</button>
+      <button class="codedocs-memo-filter-btn" id="memoFilterAll">${escapeHtml(opts.s.memo.allPages)}</button>
+    </div>
+    <div class="codedocs-memo-list" id="memoList"></div>
   </div>
 
   <script>
@@ -523,6 +529,7 @@ function generateHtmlPage(opts: {
         var svgMarkup = svgEl.outerHTML;
         var overlay = document.createElement('div');
         overlay.className = 'mermaid-overlay';
+        var BASE_SCALE = 5;
         var zoom = 100;
         overlay.innerHTML =
           '<div class="mermaid-popup">' +
@@ -537,7 +544,7 @@ function generateHtmlPage(opts: {
               '</button>' +
             '</div>' +
             '<div class="mermaid-popup-body">' +
-              '<div class="mermaid-popup-content" style="transform:scale(1)">' + svgMarkup + '</div>' +
+              '<div class="mermaid-popup-content" style="transform:scale(' + BASE_SCALE + ')">' + svgMarkup + '</div>' +
             '</div>' +
           '</div>';
         document.body.appendChild(overlay);
@@ -547,13 +554,13 @@ function generateHtmlPage(opts: {
         var popupSvg = content.querySelector('svg');
         if (popupSvg) { popupSvg.style.maxWidth = 'none'; popupSvg.style.maxHeight = 'none'; }
         overlay.querySelector('[data-action="in"]').addEventListener('click', function() {
-          zoom = Math.min(zoom + 10, 200);
-          content.style.transform = 'scale(' + (zoom / 100) + ')';
+          zoom = Math.min(zoom + 10, 500);
+          content.style.transform = 'scale(' + (BASE_SCALE * zoom / 100) + ')';
           levelEl.textContent = zoom + '%';
         });
         overlay.querySelector('[data-action="out"]').addEventListener('click', function() {
           zoom = Math.max(zoom - 10, 10);
-          content.style.transform = 'scale(' + (zoom / 100) + ')';
+          content.style.transform = 'scale(' + (BASE_SCALE * zoom / 100) + ')';
           levelEl.textContent = zoom + '%';
         });
         var closePopup = function() {
@@ -569,130 +576,381 @@ function generateHtmlPage(opts: {
     });
   </script>
   <script>
-    // Memo System (i18n)
+    // Memo System - Sticky Notes (i18n)
     (function() {
       var PAGE_ID = ${JSON.stringify(opts.pageId)};
-      var STORAGE_PREFIX = 'codedocs-memos-';
-      var AUTHOR_KEY = 'codedocs-memo-author';
+      var PAGE_URL = ${JSON.stringify(opts.currentSlug + '.html')};
+      var PAGE_TITLE = ${JSON.stringify(opts.title)};
+      var STORAGE_KEY = 'codedocs-memos';
       var STRINGS = ${JSON.stringify(opts.s.memo)};
+      var COLORS = ['#fff9c4','#c8e6c9','#bbdefb','#f8bbd0','#ffe0b2','#e1bee7','#b2dfdb'];
+      var CATEGORIES = {important:'!',add:'+',modify:'~','delete':'-',other:'?'};
+      var CAT_NAMES = {important:STRINGS.important,add:STRINGS.add,modify:STRINGS.modify,'delete':STRINGS['delete'],other:STRINGS.other};
+      var memosVisible = true;
 
+      var stickyContainer = document.getElementById('memoStickyContainer');
       var toggleBtn = document.getElementById('memoToggleBtn');
       var badge = document.getElementById('memoBadge');
+      var visibilityBtn = document.getElementById('memoVisibilityBtn');
       var panel = document.getElementById('memoPanel');
       var closeBtn = document.getElementById('memoCloseBtn');
-      var textarea = document.getElementById('memoTextarea');
-      var saveBtn = document.getElementById('memoSaveBtn');
       var memoList = document.getElementById('memoList');
       var exportBtn = document.getElementById('memoExportBtn');
       var importBtn = document.getElementById('memoImportBtn');
       var fileInput = document.getElementById('memoFileInput');
       var contextMenu = document.getElementById('memoContextMenu');
       var contextAdd = document.getElementById('memoContextAdd');
-      var selectedQuote = '';
+      var filterThisBtn = document.getElementById('memoFilterThis');
+      var filterAllBtn = document.getElementById('memoFilterAll');
+      var panelFilter = 'this';
+      var contextX = 0;
+      var contextY = 0;
 
-      function getAuthor() {
-        try { return localStorage.getItem(AUTHOR_KEY) || ''; } catch(e) { return ''; }
-      }
-      function promptAuthor() {
-        var existing = getAuthor();
-        if (existing) return existing;
-        var name = (window.prompt(STRINGS.enterName) || '').trim() || 'Anonymous';
-        try { localStorage.setItem(AUTHOR_KEY, name); } catch(e) {}
-        return name;
-      }
-      function loadMemos(pageId) {
+      function loadAllMemos() {
         try {
-          var stored = localStorage.getItem(STORAGE_PREFIX + pageId);
+          var stored = localStorage.getItem(STORAGE_KEY);
           if (!stored) return [];
           var parsed = JSON.parse(stored);
           return Array.isArray(parsed) ? parsed : [];
         } catch(e) { return []; }
       }
-      function saveMemos(pageId, memos) {
-        try { localStorage.setItem(STORAGE_PREFIX + pageId, JSON.stringify(memos)); } catch(e) {}
+      function saveAllMemos(memos) {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(memos)); } catch(e) {
+          if (e.name === 'QuotaExceededError') { alert(STRINGS.exportAll + ' - Storage full'); }
+        }
+      }
+      function getPageMemos() {
+        return loadAllMemos().filter(function(m) { return m.docId === PAGE_ID; });
       }
       function formatTimestamp(iso) {
         var d = new Date(iso);
         return d.toLocaleString(undefined, { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
       }
       function updateBadge() {
-        var memos = loadMemos(PAGE_ID);
-        if (memos.length > 0) { badge.textContent = memos.length; badge.style.display = 'flex'; }
+        var count = getPageMemos().length;
+        if (count > 0) { badge.textContent = count; badge.style.display = 'flex'; }
         else { badge.style.display = 'none'; }
       }
-      function renderMemos() {
-        var memos = loadMemos(PAGE_ID);
-        memos.sort(function(a,b) { return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); });
+      function getCatIcon(cat) { return CATEGORIES[cat] || '?'; }
+
+      // --- Sticky Note DOM ---
+      function createStickyEl(memo) {
+        var note = document.createElement('div');
+        note.className = 'codedocs-sticky' + (memo.minimized ? ' minimized' : '');
+        note.setAttribute('data-memo-id', memo.id);
+        note.style.left = memo.x + 'px';
+        note.style.top = memo.y + 'px';
+        note.style.width = (memo.width || 280) + 'px';
+        note.style.backgroundColor = memo.color || COLORS[0];
+        if (!memo.minimized) {
+          note.style.height = (memo.height || 200) + 'px';
+        }
+
+        // Header
+        var header = document.createElement('div');
+        header.className = 'codedocs-sticky-header';
+        header.style.backgroundColor = memo.color || COLORS[0];
+
+        var catSelect = document.createElement('select');
+        catSelect.className = 'codedocs-sticky-cat-select';
+        var catKeys = Object.keys(CATEGORIES);
+        for (var ci = 0; ci < catKeys.length; ci++) {
+          var opt = document.createElement('option');
+          opt.value = catKeys[ci];
+          opt.textContent = CATEGORIES[catKeys[ci]] + ' ' + (CAT_NAMES[catKeys[ci]] || catKeys[ci]);
+          if (catKeys[ci] === memo.category) opt.selected = true;
+          catSelect.appendChild(opt);
+        }
+        catSelect.addEventListener('change', function() {
+          updateMemoField(memo.id, 'category', catSelect.value);
+        });
+        header.appendChild(catSelect);
+
+        var headerBtns = document.createElement('div');
+        headerBtns.className = 'codedocs-sticky-header-btns';
+
+        var minBtn = document.createElement('button');
+        minBtn.className = 'codedocs-sticky-btn';
+        minBtn.innerHTML = '&#8211;';
+        minBtn.title = STRINGS.minimize;
+        minBtn.addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          toggleMinimize(memo.id);
+        });
+
+        var closeNoteBtn = document.createElement('button');
+        closeNoteBtn.className = 'codedocs-sticky-btn';
+        closeNoteBtn.innerHTML = '&times;';
+        closeNoteBtn.title = STRINGS.deleteMemo;
+        closeNoteBtn.addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          deleteMemo(memo.id);
+        });
+
+        headerBtns.appendChild(minBtn);
+        headerBtns.appendChild(closeNoteBtn);
+        header.appendChild(headerBtns);
+        note.appendChild(header);
+
+        if (memo.minimized) {
+          // Minimized: show just category icon tag
+          var minTag = document.createElement('div');
+          minTag.className = 'codedocs-sticky-min-tag';
+          minTag.textContent = getCatIcon(memo.category);
+          minTag.addEventListener('click', function() { toggleMinimize(memo.id); });
+          note.innerHTML = '';
+          note.appendChild(minTag);
+          return note;
+        }
+
+        // Target field
+        var targetInput = document.createElement('input');
+        targetInput.className = 'codedocs-sticky-target';
+        targetInput.type = 'text';
+        targetInput.placeholder = STRINGS.target;
+        targetInput.value = memo.target || '';
+        targetInput.addEventListener('change', function() {
+          updateMemoField(memo.id, 'target', targetInput.value);
+        });
+        targetInput.addEventListener('keydown', function(ev) {
+          if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') { commitNote(memo.id); }
+        });
+        note.appendChild(targetInput);
+
+        // Content textarea
+        var contentArea = document.createElement('textarea');
+        contentArea.className = 'codedocs-sticky-content';
+        contentArea.placeholder = STRINGS.placeholder;
+        contentArea.value = memo.content || '';
+        contentArea.title = STRINGS.finishEditing;
+        contentArea.addEventListener('change', function() {
+          updateMemoField(memo.id, 'content', contentArea.value);
+        });
+        contentArea.addEventListener('keydown', function(ev) {
+          if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') { commitNote(memo.id); }
+        });
+        note.appendChild(contentArea);
+
+        // Color bar
+        var colorBar = document.createElement('div');
+        colorBar.className = 'codedocs-sticky-colors';
+        for (var i = 0; i < COLORS.length; i++) {
+          (function(c) {
+            var circle = document.createElement('span');
+            circle.className = 'codedocs-sticky-color-circle' + (c === (memo.color || COLORS[0]) ? ' active' : '');
+            circle.style.backgroundColor = c;
+            circle.addEventListener('click', function() {
+              updateMemoField(memo.id, 'color', c);
+              renderStickies();
+            });
+            colorBar.appendChild(circle);
+          })(COLORS[i]);
+        }
+        note.appendChild(colorBar);
+
+        // Drag
+        makeDraggable(note, header, memo.id);
+        // Resize
+        makeResizable(note, memo.id);
+
+        return note;
+      }
+
+      function makeDraggable(el, handle, memoId) {
+        var startX, startY, origX, origY;
+        handle.addEventListener('mousedown', function(ev) {
+          if (ev.target.tagName === 'SELECT' || ev.target.tagName === 'BUTTON') return;
+          ev.preventDefault();
+          startX = ev.clientX;
+          startY = ev.clientY;
+          origX = parseInt(el.style.left, 10) || 0;
+          origY = parseInt(el.style.top, 10) || 0;
+          function onMove(e) {
+            var dx = e.clientX - startX;
+            var dy = e.clientY - startY;
+            el.style.left = (origX + dx) + 'px';
+            el.style.top = (origY + dy) + 'px';
+          }
+          function onUp() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            updateMemoField(memoId, 'x', parseInt(el.style.left, 10));
+            updateMemoField(memoId, 'y', parseInt(el.style.top, 10));
+          }
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+      }
+
+      function makeResizable(el, memoId) {
+        var resizeHandle = document.createElement('div');
+        resizeHandle.className = 'codedocs-sticky-resize';
+        el.appendChild(resizeHandle);
+        var startX, startY, startW, startH;
+        resizeHandle.addEventListener('mousedown', function(ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          startX = ev.clientX;
+          startY = ev.clientY;
+          startW = el.offsetWidth;
+          startH = el.offsetHeight;
+          function onMove(e) {
+            var nw = startW + (e.clientX - startX);
+            var nh = startH + (e.clientY - startY);
+            if (nw > 180) el.style.width = nw + 'px';
+            if (nh > 120) el.style.height = nh + 'px';
+          }
+          function onUp() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            updateMemoField(memoId, 'width', el.offsetWidth);
+            updateMemoField(memoId, 'height', el.offsetHeight);
+          }
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+      }
+
+      // --- Data operations ---
+      function createMemo(x, y, target) {
+        var memo = {
+          id: 'memo-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11),
+          docId: PAGE_ID,
+          pageUrl: PAGE_URL,
+          pageTitle: PAGE_TITLE,
+          content: '',
+          category: 'other',
+          target: target || '',
+          createdAt: new Date().toISOString(),
+          x: x,
+          y: y,
+          color: COLORS[0],
+          minimized: false,
+          width: 280,
+          height: 200
+        };
+        var all = loadAllMemos();
+        all.push(memo);
+        saveAllMemos(all);
+        renderStickies();
+        updateBadge();
+        renderPanelList();
+        return memo;
+      }
+
+      function updateMemoField(id, field, value) {
+        var all = loadAllMemos();
+        for (var i = 0; i < all.length; i++) {
+          if (all[i].id === id) { all[i][field] = value; break; }
+        }
+        saveAllMemos(all);
+        updateBadge();
+      }
+
+      function toggleMinimize(id) {
+        var all = loadAllMemos();
+        for (var i = 0; i < all.length; i++) {
+          if (all[i].id === id) { all[i].minimized = !all[i].minimized; break; }
+        }
+        saveAllMemos(all);
+        renderStickies();
+      }
+
+      function commitNote(id) {
+        // Blur active element to save, then re-render
+        if (document.activeElement) document.activeElement.blur();
+        renderStickies();
+      }
+
+      function deleteMemo(id) {
+        var all = loadAllMemos().filter(function(m) { return m.id !== id; });
+        saveAllMemos(all);
+        renderStickies();
+        updateBadge();
+        renderPanelList();
+      }
+
+      // --- Render sticky notes on page ---
+      function renderStickies() {
+        stickyContainer.innerHTML = '';
+        if (!memosVisible) return;
+        var pageMemos = getPageMemos();
+        for (var i = 0; i < pageMemos.length; i++) {
+          stickyContainer.appendChild(createStickyEl(pageMemos[i]));
+        }
+      }
+
+      // --- Panel list ---
+      function renderPanelList() {
+        var memos;
+        if (panelFilter === 'all') {
+          memos = loadAllMemos();
+        } else {
+          memos = getPageMemos();
+        }
+        memos.sort(function(a, b) { return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); });
         memoList.innerHTML = '';
         if (memos.length === 0) {
           memoList.innerHTML = '<div class="codedocs-memo-empty">' + STRINGS.noMemos + '</div>';
-          updateBadge();
           return;
         }
-        memos.forEach(function(memo) {
-          var item = document.createElement('div');
-          item.className = 'codedocs-memo-item';
-          var header = document.createElement('div');
-          header.className = 'codedocs-memo-item-header';
-          var meta = document.createElement('div');
-          meta.className = 'codedocs-memo-item-meta';
-          var author = document.createElement('span');
-          author.className = 'codedocs-memo-author';
-          author.textContent = memo.author || 'Anonymous';
-          var ts = document.createElement('span');
-          ts.className = 'codedocs-memo-timestamp';
-          ts.textContent = formatTimestamp(memo.createdAt);
-          meta.appendChild(author);
-          meta.appendChild(ts);
-          header.appendChild(meta);
-          var delBtn = document.createElement('button');
-          delBtn.className = 'codedocs-memo-delete-btn';
-          delBtn.innerHTML = '&times;';
-          delBtn.setAttribute('aria-label', STRINGS.deleteMemo);
-          delBtn.addEventListener('click', function() { deleteMemo(memo.id); });
-          header.appendChild(delBtn);
-          var text = document.createElement('div');
-          text.className = 'codedocs-memo-text';
-          text.textContent = memo.text;
-          item.appendChild(header);
-          item.appendChild(text);
-          memoList.appendChild(item);
-        });
-        updateBadge();
+        for (var i = 0; i < memos.length; i++) {
+          (function(memo) {
+            var item = document.createElement('div');
+            item.className = 'codedocs-memo-item';
+            item.style.borderLeft = '4px solid ' + (memo.color || COLORS[0]);
+
+            var catSpan = document.createElement('span');
+            catSpan.className = 'codedocs-memo-cat-icon';
+            catSpan.textContent = getCatIcon(memo.category);
+
+            var info = document.createElement('div');
+            info.className = 'codedocs-memo-item-info';
+
+            var targetEl = document.createElement('div');
+            targetEl.className = 'codedocs-memo-item-target';
+            targetEl.textContent = memo.target || '(' + STRINGS.target + ')';
+
+            var contentEl = document.createElement('div');
+            contentEl.className = 'codedocs-memo-item-content';
+            var truncated = (memo.content || '').length > 60 ? (memo.content || '').slice(0, 60) + '...' : (memo.content || STRINGS.noMemos);
+            contentEl.textContent = truncated;
+
+            var metaEl = document.createElement('div');
+            metaEl.className = 'codedocs-memo-item-meta';
+            metaEl.textContent = (memo.pageTitle || '') + ' - ' + formatTimestamp(memo.createdAt);
+
+            info.appendChild(targetEl);
+            info.appendChild(contentEl);
+            info.appendChild(metaEl);
+
+            item.appendChild(catSpan);
+            item.appendChild(info);
+
+            item.addEventListener('click', function() {
+              if (memo.docId !== PAGE_ID) {
+                // Navigate to the page
+                window.location.href = memo.pageUrl;
+                return;
+              }
+              // Scroll to memo position
+              window.scrollTo({ top: Math.max(0, memo.y - 100), behavior: 'smooth' });
+              // Ensure visible
+              if (!memosVisible) {
+                memosVisible = true;
+                renderStickies();
+              }
+            });
+
+            memoList.appendChild(item);
+          })(memos[i]);
+        }
       }
-      function addMemo(text) {
-        if (!text.trim()) return;
-        var author = promptAuthor();
-        var memo = {
-          id: 'memo-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11),
-          pageId: PAGE_ID, text: text.trim(), author: author,
-          createdAt: new Date().toISOString()
-        };
-        var memos = loadMemos(PAGE_ID);
-        memos.push(memo);
-        saveMemos(PAGE_ID, memos);
-        renderMemos();
-        textarea.value = '';
-        saveBtn.disabled = true;
-      }
-      function deleteMemo(id) {
-        var memos = loadMemos(PAGE_ID).filter(function(m) { return m.id !== id; });
-        saveMemos(PAGE_ID, memos);
-        renderMemos();
-      }
+
+      // --- Export / Import ---
       function exportAllMemos() {
-        var store = { version: 1, memos: {} };
-        try {
-          for (var i = 0; i < localStorage.length; i++) {
-            var key = localStorage.key(i);
-            if (!key || key.indexOf(STORAGE_PREFIX) !== 0) continue;
-            var pid = key.slice(STORAGE_PREFIX.length);
-            var raw = localStorage.getItem(key);
-            if (!raw) continue;
-            try { var parsed = JSON.parse(raw); if (Array.isArray(parsed) && parsed.length > 0) store.memos[pid] = parsed; } catch(e) {}
-          }
-        } catch(e) {}
-        var blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+        var all = loadAllMemos();
+        var blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a'); a.href = url; a.download = 'memos.json'; a.click();
         URL.revokeObjectURL(url);
@@ -702,32 +960,49 @@ function generateHtmlPage(opts: {
         reader.onload = function() {
           try {
             var imported = JSON.parse(reader.result);
-            if (!imported || !imported.memos) return;
-            for (var pageId in imported.memos) {
-              var newMemos = imported.memos[pageId];
-              if (!Array.isArray(newMemos)) continue;
-              var existing = loadMemos(pageId);
-              var existingIds = {};
-              existing.forEach(function(m) { existingIds[m.id] = true; });
-              var added = newMemos.filter(function(m) { return !existingIds[m.id]; });
-              if (added.length > 0) saveMemos(pageId, existing.concat(added));
+            if (!Array.isArray(imported)) return;
+            var existing = loadAllMemos();
+            var existingIds = {};
+            for (var i = 0; i < existing.length; i++) { existingIds[existing[i].id] = true; }
+            var added = imported.filter(function(m) { return m.id && !existingIds[m.id]; });
+            if (added.length > 0) {
+              saveAllMemos(existing.concat(added));
+              renderStickies();
+              updateBadge();
+              renderPanelList();
             }
-            renderMemos();
-          } catch(e) { console.error('Failed to import memos:', e); }
+          } catch(e) {}
         };
         reader.readAsText(file);
       }
+
+      // --- Event bindings ---
       toggleBtn.addEventListener('click', function() {
         var isOpen = panel.style.display !== 'none';
         panel.style.display = isOpen ? 'none' : 'flex';
-        if (!isOpen) renderMemos();
+        if (!isOpen) renderPanelList();
       });
       closeBtn.addEventListener('click', function() { panel.style.display = 'none'; });
-      textarea.addEventListener('input', function() { saveBtn.disabled = !textarea.value.trim(); });
-      saveBtn.addEventListener('click', function() { addMemo(textarea.value); });
-      textarea.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') addMemo(textarea.value);
+
+      visibilityBtn.addEventListener('click', function() {
+        memosVisible = !memosVisible;
+        visibilityBtn.classList.toggle('off', !memosVisible);
+        renderStickies();
       });
+
+      filterThisBtn.addEventListener('click', function() {
+        panelFilter = 'this';
+        filterThisBtn.classList.add('active');
+        filterAllBtn.classList.remove('active');
+        renderPanelList();
+      });
+      filterAllBtn.addEventListener('click', function() {
+        panelFilter = 'all';
+        filterAllBtn.classList.add('active');
+        filterThisBtn.classList.remove('active');
+        renderPanelList();
+      });
+
       exportBtn.addEventListener('click', exportAllMemos);
       importBtn.addEventListener('click', function() { fileInput.click(); });
       fileInput.addEventListener('change', function(e) {
@@ -735,11 +1010,14 @@ function generateHtmlPage(opts: {
         if (file) importMemos(file);
         e.target.value = '';
       });
+
+      // Context menu on article area
       var article = document.querySelector('article');
       if (article) {
         article.addEventListener('contextmenu', function(e) {
           e.preventDefault();
-          selectedQuote = (window.getSelection() || '').toString().trim();
+          contextX = e.pageX;
+          contextY = e.pageY;
           contextMenu.style.display = 'block';
           contextMenu.style.left = e.pageX + 'px';
           contextMenu.style.top = e.pageY + 'px';
@@ -747,19 +1025,22 @@ function generateHtmlPage(opts: {
       }
       contextAdd.addEventListener('click', function() {
         contextMenu.style.display = 'none';
-        panel.style.display = 'flex';
-        renderMemos();
-        if (selectedQuote) { textarea.value = '> ' + selectedQuote + '\\n\\n'; saveBtn.disabled = false; }
-        textarea.focus();
+        var sel = (window.getSelection() || '').toString().trim();
+        var memo = createMemo(contextX, contextY, sel);
       });
-      document.addEventListener('click', function() { contextMenu.style.display = 'none'; });
+      document.addEventListener('click', function(e) {
+        if (!contextMenu.contains(e.target)) contextMenu.style.display = 'none';
+      });
       document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
           contextMenu.style.display = 'none';
-          if (panel.style.display !== 'none' && !textarea.value.trim()) panel.style.display = 'none';
+          if (panel.style.display !== 'none') panel.style.display = 'none';
         }
       });
+
+      // Init
       updateBadge();
+      renderStickies();
     })();
   </script>
 </body>
@@ -1285,11 +1566,34 @@ article strong { font-weight: 600; }
 .footer a { color: var(--text-secondary); text-decoration: none; }
 .footer a:hover { color: var(--primary); }
 
-/* ── Memo Button ── */
-.codedocs-memo-button {
+/* ── Memo Controls (bottom-right) ── */
+.codedocs-memo-controls {
   position: fixed;
   bottom: 24px;
   right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 100;
+}
+.codedocs-memo-visibility-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.codedocs-memo-visibility-btn:hover { transform: scale(1.1); }
+.codedocs-memo-visibility-btn.off { opacity: 0.4; }
+.codedocs-memo-button {
+  position: relative;
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -1302,14 +1606,12 @@ article strong { font-weight: 600; }
   align-items: center;
   justify-content: center;
   transition: transform 0.2s, box-shadow 0.2s;
-  z-index: 100;
 }
 .codedocs-memo-button:hover {
   transform: scale(1.1);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 .codedocs-memo-button:active { transform: scale(0.95); }
-
 .codedocs-memo-badge {
   position: absolute;
   top: -4px;
@@ -1328,7 +1630,134 @@ article strong { font-weight: 600; }
   border: 2px solid var(--bg);
 }
 
-/* ── Memo Panel ── */
+/* ── Sticky Note ── */
+.codedocs-sticky {
+  position: absolute;
+  min-width: 180px;
+  min-height: 120px;
+  border-radius: 4px;
+  box-shadow: 2px 2px 10px rgba(0,0,0,0.18);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  font-size: 0.85rem;
+  overflow: hidden;
+}
+.codedocs-sticky.minimized {
+  min-width: auto;
+  min-height: auto;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.codedocs-sticky-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  cursor: move;
+  gap: 4px;
+  filter: brightness(0.92);
+  flex-shrink: 0;
+}
+.codedocs-sticky-cat-select {
+  border: none;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+  padding: 2px;
+  max-width: 120px;
+}
+.codedocs-sticky-cat-select:focus { outline: none; }
+.codedocs-sticky-header-btns {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.codedocs-sticky-btn {
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  color: #555;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  line-height: 1;
+}
+.codedocs-sticky-btn:hover { background: rgba(0,0,0,0.1); }
+.codedocs-sticky-target {
+  border: none;
+  border-bottom: 1px dashed rgba(0,0,0,0.2);
+  background: transparent;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #333;
+  flex-shrink: 0;
+}
+.codedocs-sticky-target:focus { outline: none; border-bottom-color: rgba(0,0,0,0.5); }
+.codedocs-sticky-target::placeholder { color: rgba(0,0,0,0.35); }
+.codedocs-sticky-content {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: #333;
+  resize: none;
+  line-height: 1.5;
+}
+.codedocs-sticky-content:focus { outline: none; }
+.codedocs-sticky-content::placeholder { color: rgba(0,0,0,0.35); }
+.codedocs-sticky-colors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+.codedocs-sticky-color-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, transform 0.15s;
+  box-shadow: 0 0 2px rgba(0,0,0,0.15);
+}
+.codedocs-sticky-color-circle:hover { transform: scale(1.2); }
+.codedocs-sticky-color-circle.active { border-color: #333; }
+.codedocs-sticky-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.15) 50%);
+}
+.codedocs-sticky-min-tag {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #333;
+  cursor: pointer;
+}
+
+/* ── Memo Manager Panel ── */
 .codedocs-memo-panel {
   position: fixed;
   bottom: 0;
@@ -1352,15 +1781,38 @@ article strong { font-weight: 600; }
 .codedocs-memo-panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px;
+  gap: 8px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-secondary);
+  flex-wrap: wrap;
 }
 .codedocs-memo-panel-header h3 {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
+  flex-shrink: 0;
+}
+.codedocs-memo-panel-actions {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.codedocs-memo-action-btn {
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.codedocs-memo-action-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--primary);
+  color: var(--text);
 }
 .codedocs-memo-close {
   background: transparent;
@@ -1375,74 +1827,43 @@ article strong { font-weight: 600; }
   justify-content: center;
   border-radius: 6px;
   transition: background 0.2s;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 .codedocs-memo-close:hover {
   background: var(--bg-tertiary);
   color: var(--text);
 }
-.codedocs-memo-panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-}
-.codedocs-memo-actions {
+.codedocs-memo-panel-filters {
   display: flex;
-  gap: 4px;
-  margin-bottom: 16px;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
 }
-.codedocs-memo-action-btn {
+.codedocs-memo-filter-btn {
   flex: 1;
-  padding: 4px 8px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 8px;
+  background: var(--bg);
+  border: none;
+  border-bottom: 2px solid transparent;
   color: var(--text-secondary);
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  transition: color 0.2s, border-color 0.2s;
 }
-.codedocs-memo-action-btn:hover {
-  background: var(--bg-tertiary);
-  border-color: var(--primary);
-  color: var(--text);
+.codedocs-memo-filter-btn:hover { color: var(--text); }
+.codedocs-memo-filter-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
 }
-.codedocs-memo-editor { margin-bottom: 16px; }
-.codedocs-memo-textarea {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 0.875rem;
-  resize: vertical;
-  margin-bottom: 8px;
-}
-.codedocs-memo-textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-.codedocs-memo-save-btn {
-  width: 100%;
-  padding: 8px 16px;
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-.codedocs-memo-save-btn:hover:not(:disabled) { opacity: 0.9; }
-.codedocs-memo-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* ── Memo List ── */
 .codedocs-memo-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .codedocs-memo-empty {
   text-align: center;
@@ -1451,55 +1872,54 @@ article strong { font-weight: 600; }
   padding: 1.5rem 0;
 }
 .codedocs-memo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   padding: 8px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 6px;
-}
-.codedocs-memo-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-.codedocs-memo-item-meta {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-.codedocs-memo-author {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-.codedocs-memo-timestamp {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-.codedocs-memo-delete-btn {
-  background: transparent;
-  border: none;
-  font-size: 1.25rem;
-  color: var(--text-secondary);
   cursor: pointer;
+  transition: background 0.15s;
+}
+.codedocs-memo-item:hover { background: var(--bg-tertiary); }
+.codedocs-memo-cat-icon {
   width: 24px;
   height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  transition: background 0.2s, color 0.2s;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  background: var(--bg);
+  border-radius: 4px;
 }
-.codedocs-memo-delete-btn:hover {
-  background: var(--bg-tertiary);
-  color: #ef4444;
+.codedocs-memo-item-info {
+  flex: 1;
+  min-width: 0;
 }
-.codedocs-memo-text {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
+.codedocs-memo-item-target {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.codedocs-memo-item-content {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.codedocs-memo-item-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 /* ── Context Menu ── */
@@ -1537,6 +1957,20 @@ article strong { font-weight: 600; }
 }
 [data-theme="dark"] .codedocs-context-menu {
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .codedocs-sticky-cat-select,
+[data-theme="dark"] .codedocs-sticky-target,
+[data-theme="dark"] .codedocs-sticky-content,
+[data-theme="dark"] .codedocs-sticky-btn,
+[data-theme="dark"] .codedocs-sticky-min-tag {
+  color: #222;
+}
+[data-theme="dark"] .codedocs-sticky-target::placeholder,
+[data-theme="dark"] .codedocs-sticky-content::placeholder {
+  color: rgba(0,0,0,0.4);
+}
+[data-theme="dark"] .codedocs-memo-visibility-btn {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* ── Responsive: hide TOC below 1100px ── */
