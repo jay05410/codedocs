@@ -20,7 +20,7 @@ export type {
 export { ParserEngine } from './parser/engine.js';
 export { FileReader } from './parser/file-reader.js';
 export { AnalysisCache } from './parser/cache.js';
-export type { CacheData, CacheEntry } from './parser/cache.js';
+export type { CacheData, ParserCacheEntry } from './parser/cache.js';
 export type { AiProvider, AiProviderConfig } from './ai/types.js';
 export { AI_DEFAULTS } from './ai/types.js';
 export { createAiProvider } from './ai/providers/index.js';
@@ -53,6 +53,15 @@ export { groupByDomain, groupByHeuristic, groupComponentsByHeuristic } from './a
 export type { Memo, MemoStore, MemoDisplayItem } from './memo/types.js';
 export { createEmptyMemoStore, parseMemoStore, mergeMemoStores } from './memo/index.js';
 export { escapeHtml, escapeMd, toKebab, extractFrontmatter } from './utils/index.js';
+
+// SFC (Single File Component) utilities
+export {
+  extractScriptBlock,
+  extractTemplateBlock,
+  extractStyleBlock,
+  extractFunctionBody,
+  inferTypeFromDefault,
+} from './parser/sfc-utils.js';
 
 // Tree-sitter WASM engine
 export {

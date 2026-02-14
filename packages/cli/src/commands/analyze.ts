@@ -8,6 +8,7 @@ import { FileReader } from '@codedocs/core';
 import { ParserEngine } from '@codedocs/core';
 import { getCliStrings, t, initLocale } from '../i18n.js';
 import { resolveBuiltinParsers } from '../parser-registry.js';
+import { resolveSourcePatterns } from '../utils/source-patterns.js';
 
 export const analyzeCommand = new Command('analyze')
   .description('Analyze source code and extract documentation')
@@ -34,10 +35,13 @@ export const analyzeCommand = new Command('analyze')
 
       spinner.text = strings.readingFiles;
 
-      // Read source files
+      // Resolve string parser names to actual parser instances first.
+      const resolvedParsers = await resolveBuiltinParsers(config.parsers as any);
+
+      // Read source files based on parser file patterns (multi-language aware).
       const fileReader = new FileReader();
       const sourceDir = config.source || './src';
-      const patterns = ['**/*.{ts,tsx,js,jsx}'];
+      const patterns = resolveSourcePatterns(resolvedParsers);
       const sourceFiles = await fileReader.readFiles(sourceDir, patterns);
 
       if (sourceFiles.length === 0) {
@@ -49,8 +53,6 @@ export const analyzeCommand = new Command('analyze')
       spinner.text = t(strings.analyzingFiles, { n: sourceFiles.length });
       console.log(chalk.dim(`  Found ${sourceFiles.length} files to analyze`));
 
-      // Resolve string parser names to actual parser instances
-      const resolvedParsers = await resolveBuiltinParsers(config.parsers as any);
       const parserEngine = new ParserEngine(resolvedParsers);
 
       // Analyze all files

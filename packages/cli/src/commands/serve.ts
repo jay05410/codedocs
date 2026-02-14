@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { existsSync, readFileSync, statSync } from 'fs';
-import { resolve, join, extname } from 'path';
+import { resolve, join, extname, normalize, sep } from 'path';
 import { createServer } from 'http';
 import { exec } from 'child_process';
 
@@ -30,6 +30,7 @@ export const serveCommand = new Command('serve')
   .action(async (options) => {
     const port = parseInt(options.port, 10);
     const dir = resolve(process.cwd(), options.dir);
+    const rootWithSep = dir.endsWith(sep) ? dir : `${dir}${sep}`;
 
     // Check if directory exists
     if (!existsSync(dir)) {
@@ -39,28 +40,38 @@ export const serveCommand = new Command('serve')
 
     // Create HTTP server
     const server = createServer((req, res) => {
-      let filePath = join(dir, req.url || '/');
+      const requestUrl = req.url || '/';
+      const pathname = safePathname(requestUrl);
+      const filePath = resolveRequestPath(dir, pathname);
+
+      if (!filePath || (!filePath.startsWith(rootWithSep) && filePath !== dir)) {
+        res.writeHead(403, defaultHeaders('text/plain'));
+        res.end('Forbidden');
+        return;
+      }
+
+      let finalPath = filePath;
 
       // Handle directory requests
-      if (existsSync(filePath) && statSync(filePath).isDirectory()) {
-        filePath = join(filePath, 'index.html');
+      if (existsSync(finalPath) && statSync(finalPath).isDirectory()) {
+        finalPath = join(finalPath, 'index.html');
       }
 
       // Serve file
-      if (existsSync(filePath) && statSync(filePath).isFile()) {
+      if (existsSync(finalPath) && statSync(finalPath).isFile()) {
         try {
-          const content = readFileSync(filePath);
-          const ext = extname(filePath);
+          const content = readFileSync(finalPath);
+          const ext = extname(finalPath);
           const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
 
-          res.writeHead(200, { 'Content-Type': mimeType });
+          res.writeHead(200, defaultHeaders(mimeType));
           res.end(content);
         } catch (error) {
-          res.writeHead(500);
+          res.writeHead(500, defaultHeaders('text/plain'));
           res.end('Internal Server Error');
         }
       } else {
-        res.writeHead(404);
+        res.writeHead(404, defaultHeaders('text/plain'));
         res.end('Not Found');
       }
     });
@@ -97,3 +108,27 @@ export const serveCommand = new Command('serve')
       server.close(() => process.exit(0));
     });
   });
+
+function safePathname(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl, 'http://localhost');
+    const decoded = decodeURIComponent(parsed.pathname || '/');
+    return decoded.includes('\0') ? '/' : decoded;
+  } catch {
+    return '/';
+  }
+}
+
+function resolveRequestPath(rootDir: string, pathname: string): string | null {
+  const safePath = normalize(pathname).replace(/^(\.\.(\/|\\|$))+/, '');
+  return resolve(rootDir, `.${safePath.startsWith('/') ? safePath : `/${safePath}`}`);
+}
+
+function defaultHeaders(contentType: string): Record<string, string> {
+  return {
+    'Content-Type': contentType,
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+  };
+}

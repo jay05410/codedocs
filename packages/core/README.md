@@ -223,16 +223,12 @@ Incremental builds with smart caching:
 import { AnalysisCache } from '@codedocs/core';
 
 const cache = new AnalysisCache('.codedocs/cache');
-await cache.load();
+await cache.loadCache();
 
-// Check if file changed
-if (cache.hasChanged(filePath, content)) {
-  // Re-analyze
-  const result = await parser.parse(file);
-  cache.set(filePath, result, content);
-}
+const result = await parser.parse(files);
+cache.setParserResult('react', files, result);
 
-await cache.save();
+await cache.saveCache();
 ```
 
 ### Memo System
