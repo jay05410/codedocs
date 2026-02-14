@@ -217,13 +217,14 @@ function parseCustomHooks(file: SourceFile): ServiceInfo[] {
 
   while ((match = hookRe.exec(file.content)) !== null) {
     const hookName = match[1];
+    const methods = extractReturnedMethods(file.content, hookName);
     const returnType = extractHookReturnType(file.content, hookName);
     const deps = extractHookDependencies(file.content, hookName);
 
     hooks.push({
       name: hookName,
       filePath: file.path,
-      methods: returnType ? [returnType] : [],
+      methods: methods.length > 0 ? methods : (returnType ? [returnType] : []),
       dependencies: deps,
       description: extractFunctionComment(file.content, match.index),
     });
@@ -486,9 +487,27 @@ function parseTsInterfaceFields(body: string): { name: string; type: string; req
 }
 
 function extractHookReturnType(content: string, hookName: string): string | undefined {
-  const returnRe = new RegExp(`function\\s+${hookName}[^)]*\\)\\s*(?::\\s*([\\w<>\\[\\]|&{}]+))?`);
-  const match = content.match(returnRe);
-  return match?.[1];
+  // Match function declaration: function useXxx(...): ReturnType
+  const funcRe = new RegExp(`function\\s+${hookName}[^)]*\\)\\s*(?::\\s*([\\w<>\\[\\]|&{}\\s,]+?))?\\s*\\{`);
+  const funcMatch = content.match(funcRe);
+  if (funcMatch?.[1]) return funcMatch[1].trim();
+
+  // Match arrow function: const useXxx = (...): ReturnType =>
+  const arrowRe = new RegExp(`(?:const|let|var)\\s+${hookName}\\s*=\\s*(?:<[^>]*>)?\\s*\\([^)]*\\)\\s*(?::\\s*([\\w<>\\[\\]|&{}\\s,]+?))?\\s*=>`);
+  const arrowMatch = content.match(arrowRe);
+  if (arrowMatch?.[1]) return arrowMatch[1].trim();
+
+  // Extract return type from returned object keys as fallback
+  const body = extractFunctionBody(content, hookName);
+  if (body) {
+    const returnMatch = body.match(/return\s*\{([^}]+)\}/);
+    if (returnMatch) {
+      const keys = returnMatch[1].split(',').map(k => k.trim().split(':')[0].split('=')[0].trim()).filter(Boolean);
+      if (keys.length > 0) return keys.join(', ');
+    }
+  }
+
+  return undefined;
 }
 
 function extractHookDependencies(content: string, hookName: string): string[] {
@@ -514,10 +533,19 @@ function extractHookDependencies(content: string, hookName: string): string[] {
 }
 
 function extractFunctionBody(content: string, funcName: string): string | null {
-  const funcStart = content.indexOf(`function ${funcName}`);
-  if (funcStart === -1) return null;
+  // Try function declaration first: function funcName(...)
+  let start = content.indexOf(`function ${funcName}`);
 
-  const braceStart = content.indexOf('{', funcStart);
+  // Try arrow function: const funcName = (...) =>
+  if (start === -1) {
+    const arrowRe = new RegExp(`(?:const|let|var)\\s+${funcName}\\s*=`);
+    const arrowMatch = arrowRe.exec(content);
+    if (arrowMatch) start = arrowMatch.index;
+  }
+
+  if (start === -1) return null;
+
+  const braceStart = content.indexOf('{', start);
   if (braceStart === -1) return null;
 
   let depth = 1;
@@ -529,6 +557,17 @@ function extractFunctionBody(content: string, funcName: string): string | null {
   }
 
   return content.substring(braceStart + 1, i - 1);
+}
+
+function extractReturnedMethods(content: string, funcName: string): string[] {
+  const body = extractFunctionBody(content, funcName);
+  if (!body) return [];
+
+  const returnMatch = body.match(/return\s*\{([\s\S]*?)\}/);
+  if (!returnMatch) return [];
+
+  const names = returnMatch[1].match(/\b(\w+)\b/g);
+  return names || [];
 }
 
 function extractImportedModules(content: string): string[] {

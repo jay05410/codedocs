@@ -122,14 +122,46 @@ export interface I18nStrings {
     other: string;
     minimize: string;
     finishEditing: string;
+    currentPageOnly: string;
   };
   // Navigation
   nav: {
     toggleMenu: string;
+    memo: string;
   };
   // Table of contents
   toc: {
     onThisPage: string;
+  };
+  // Home/Landing page
+  home: {
+    title: string;
+    subtitle: string;
+    sectionDesc: {
+      overview: string;
+      api: string;
+      components: string;
+      hooks: string;
+      architecture: string;
+      changelog: string;
+      memo: string;
+    };
+  };
+  // Breadcrumb
+  breadcrumb: {
+    home: string;
+  };
+  // Memo dedicated page
+  memoPage: {
+    title: string;
+    description: string;
+    filterAll: string;
+    deleteAll: string;
+    confirmDeleteAll: string;
+    copyJson: string;
+    copied: string;
+    noMemos: string;
+    totalCount: string;
   };
   // Common
   common: {
@@ -433,12 +465,39 @@ const en: I18nStrings = {
     other: 'Other',
     minimize: 'Minimize',
     finishEditing: 'Finish editing (Ctrl+Enter)',
+    currentPageOnly: 'Current Page Only',
   },
   nav: {
     toggleMenu: 'Toggle menu',
+    memo: 'Memo',
   },
   toc: {
     onThisPage: 'On this page',
+  },
+  home: {
+    title: 'Documentation Hub',
+    subtitle: 'Explore your project documentation',
+    sectionDesc: {
+      overview: 'Project summary, statistics, and quick links',
+      api: 'REST & GraphQL endpoint documentation',
+      components: 'UI component props and usage',
+      hooks: 'Custom hooks and service layer',
+      architecture: 'Dependency graphs and system overview',
+      changelog: 'Version history and changes',
+      memo: 'Team notes and annotations',
+    },
+  },
+  breadcrumb: { home: 'Home' },
+  memoPage: {
+    title: 'Memo Manager',
+    description: 'Add memos on any page using the pencil button at bottom-right. Memos are saved in your browser and can be managed here.',
+    filterAll: 'All',
+    deleteAll: 'Delete All',
+    confirmDeleteAll: 'Are you sure you want to delete all memos? This cannot be undone.',
+    copyJson: 'Copy JSON',
+    copied: 'Copied!',
+    noMemos: 'No memos yet. Add memos from any documentation page.',
+    totalCount: 'Total: {{n}} memos',
   },
   common: {
     overview: 'Overview',
@@ -719,12 +778,39 @@ const ko: I18nStrings = {
     other: '기타',
     minimize: '최소화',
     finishEditing: '편집 완료 (Ctrl+Enter)',
+    currentPageOnly: '현재 페이지만',
   },
   nav: {
     toggleMenu: '메뉴 토글',
+    memo: '메모',
   },
   toc: {
     onThisPage: '이 페이지 목차',
+  },
+  home: {
+    title: '문서 허브',
+    subtitle: '프로젝트 문서를 탐색하세요',
+    sectionDesc: {
+      overview: '프로젝트 요약, 통계, 바로가기',
+      api: 'REST & GraphQL 엔드포인트 문서',
+      components: 'UI 컴포넌트 속성 및 사용법',
+      hooks: '커스텀 훅과 서비스 레이어',
+      architecture: '의존성 그래프와 시스템 개요',
+      changelog: '버전 이력 및 변경사항',
+      memo: '팀 메모 및 주석',
+    },
+  },
+  breadcrumb: { home: '홈' },
+  memoPage: {
+    title: '메모 관리',
+    description: '각 페이지 우측 하단의 버튼으로 메모를 추가할 수 있습니다. 추가한 메모는 브라우저에 저장되며, 여기에서 확인/관리할 수 있습니다.',
+    filterAll: '전체',
+    deleteAll: '전체 삭제',
+    confirmDeleteAll: '모든 메모를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+    copyJson: 'JSON 복사',
+    copied: '복사됨!',
+    noMemos: '아직 메모가 없습니다. 문서 페이지에서 메모를 추가하세요.',
+    totalCount: '총 {{n}}개 메모',
   },
   common: {
     overview: '개요',
@@ -1005,12 +1091,39 @@ const ja: I18nStrings = {
     other: 'その他',
     minimize: '最小化',
     finishEditing: '編集完了 (Ctrl+Enter)',
+    currentPageOnly: 'このページのみ',
   },
   nav: {
     toggleMenu: 'メニュー切替',
+    memo: 'メモ',
   },
   toc: {
     onThisPage: 'このページの内容',
+  },
+  home: {
+    title: 'ドキュメントハブ',
+    subtitle: 'プロジェクトドキュメントを探索',
+    sectionDesc: {
+      overview: 'プロジェクト概要、統計、クイックリンク',
+      api: 'REST & GraphQL エンドポイントドキュメント',
+      components: 'UIコンポーネントのプロパティと使い方',
+      hooks: 'カスタムフックとサービスレイヤー',
+      architecture: '依存関係グラフとシステム概要',
+      changelog: 'バージョン履歴と変更点',
+      memo: 'チームメモと注釈',
+    },
+  },
+  breadcrumb: { home: 'ホーム' },
+  memoPage: {
+    title: 'メモ管理',
+    description: '各ページ右下のボタンからメモを追加できます。メモはブラウザに保存され、ここで確認・管理できます。',
+    filterAll: 'すべて',
+    deleteAll: '全削除',
+    confirmDeleteAll: 'すべてのメモを削除しますか？この操作は元に戻せません。',
+    copyJson: 'JSONコピー',
+    copied: 'コピーしました！',
+    noMemos: 'メモはまだありません。ドキュメントページからメモを追加してください。',
+    totalCount: '合計 {{n}}件のメモ',
   },
   common: {
     overview: '概要',
@@ -1291,12 +1404,39 @@ const zh: I18nStrings = {
     other: '其他',
     minimize: '最小化',
     finishEditing: '完成编辑 (Ctrl+Enter)',
+    currentPageOnly: '仅当前页面',
   },
   nav: {
     toggleMenu: '切换菜单',
+    memo: '备忘',
   },
   toc: {
     onThisPage: '本页内容',
+  },
+  home: {
+    title: '文档中心',
+    subtitle: '探索项目文档',
+    sectionDesc: {
+      overview: '项目摘要、统计和快速链接',
+      api: 'REST & GraphQL 端点文档',
+      components: 'UI组件属性和用法',
+      hooks: '自定义钩子和服务层',
+      architecture: '依赖关系图和系统概述',
+      changelog: '版本历史和变更',
+      memo: '团队备忘和注释',
+    },
+  },
+  breadcrumb: { home: '首页' },
+  memoPage: {
+    title: '备忘管理',
+    description: '在各页面右下角的按钮添加备忘。备忘保存在浏览器中，可在此处确认和管理。',
+    filterAll: '全部',
+    deleteAll: '全部删除',
+    confirmDeleteAll: '确定要删除所有备忘吗？此操作不可撤销。',
+    copyJson: '复制JSON',
+    copied: '已复制！',
+    noMemos: '暂无备忘。请从文档页面添加备忘。',
+    totalCount: '共 {{n}} 条备忘',
   },
   common: {
     overview: '概述',

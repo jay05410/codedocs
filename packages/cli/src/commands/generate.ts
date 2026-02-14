@@ -186,6 +186,11 @@ export const generateCommand = new Command('generate')
         generatedCount++;
       }
 
+      // Generate memo management page
+      const memoContent = `# ${i18n.memoPage?.title || 'Memo Manager'}\n\n${i18n.memoPage?.description || ''}\n`;
+      writeFileSync(join(outputPath, 'memo.md'), memoContent, 'utf-8');
+      generatedCount++;
+
       // Generate _sidebar.json with domain grouping (AI or heuristic)
       spinner.text = 'Building sidebar...';
       const sidebarItems = await buildDomainSidebar(
