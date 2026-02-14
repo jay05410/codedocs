@@ -116,6 +116,10 @@ export class SidebarGenerator {
         return 'architecture';
       case 'changelog':
         return 'changelog';
+      case 'components':
+        return 'components/';
+      case 'services':
+        return 'hooks/';
       case 'custom':
         return section.dir || section.id + '/';
       case 'auto':
