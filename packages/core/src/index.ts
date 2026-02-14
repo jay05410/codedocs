@@ -53,3 +53,16 @@ export { groupByDomain, groupByHeuristic, groupComponentsByHeuristic } from './a
 export type { Memo, MemoStore, MemoDisplayItem } from './memo/types.js';
 export { createEmptyMemoStore, parseMemoStore, mergeMemoStores } from './memo/index.js';
 export { escapeHtml, escapeMd, toKebab, extractFrontmatter } from './utils/index.js';
+
+// Tree-sitter WASM engine
+export {
+  isTreeSitterAvailable,
+  loadLanguage,
+  parseCode,
+  queryCode,
+  findNodes,
+  captureText,
+  captureAllTexts,
+  detectLanguage,
+} from './parser/tree-sitter-engine.js';
+export type { TsQueryMatch, TsNode, TsLanguage } from './parser/tree-sitter-engine.js';
