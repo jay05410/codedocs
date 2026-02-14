@@ -4,9 +4,10 @@
 
 import { spawn } from 'node:child_process';
 import type { AiProvider, AiProviderConfig, ChatMessage, ChatOptions } from '../types.js';
+import { extractJson } from '../types.js';
 import { logger } from '../../logger.js';
 
-const CLI_TIMEOUT = 120000; // 2 minutes (CLI tools are slower than direct API)
+const DEFAULT_CLI_TIMEOUT = 120000; // 2 minutes (CLI tools are slower than direct API)
 const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB cap to prevent OOM
 
 interface CliProviderSpec {
@@ -152,6 +153,7 @@ export function createCliProvider(config: AiProviderConfig): AiProvider {
   }
 
   const providerLogger = logger.child(spec.displayName);
+  const cliTimeout = config.timeout ?? DEFAULT_CLI_TIMEOUT;
 
   // Cache availability — check once at creation, not per call
   let availableChecked = false;
@@ -177,13 +179,6 @@ export function createCliProvider(config: AiProviderConfig): AiProvider {
         );
       }
 
-      // Warn when ChatOptions cannot be honored by CLI tools
-      if (options.jsonMode) {
-        providerLogger.warn(
-          'jsonMode requested but CLI provider cannot enforce JSON output',
-        );
-      }
-
       // Combine messages into a single prompt
       const prompt = messages
         .map((msg) => {
@@ -200,10 +195,19 @@ export function createCliProvider(config: AiProviderConfig): AiProvider {
       );
 
       try {
-        const result = await execCli(spec.command, args, CLI_TIMEOUT, prompt);
+        const result = await execCli(spec.command, args, cliTimeout, prompt);
 
         if (!result) {
           throw new Error(`${spec.displayName} returned empty response`);
+        }
+
+        if (options.jsonMode) {
+          try {
+            return extractJson(result);
+          } catch {
+            providerLogger.warn('jsonMode: failed to extract JSON from CLI response');
+            return result;
+          }
         }
 
         return result;

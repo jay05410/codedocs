@@ -42,6 +42,8 @@ export function createProviderFromAdapter(
   adapter.validateConfig(config);
 
   const providerLogger = rootLogger.child(adapter.name);
+  const timeout = config.timeout ?? DEFAULT_TIMEOUT;
+  const maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
 
   async function makeRequest(
     messages: ChatMessage[],
@@ -53,7 +55,7 @@ export function createProviderFromAdapter(
     const body = adapter.buildBody(config, messages, options);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
       const response = await fetch(url, {
@@ -74,7 +76,7 @@ export function createProviderFromAdapter(
         // Retry on rate limit or server errors
         if (
           (response.status === 429 || response.status >= 500) &&
-          attempt < DEFAULT_MAX_RETRIES
+          attempt < maxRetries
         ) {
           const delay = DEFAULT_RETRY_DELAY * Math.pow(2, attempt);
           providerLogger.warn(
@@ -103,10 +105,10 @@ export function createProviderFromAdapter(
       // Handle timeout
       if (error instanceof Error && error.name === 'AbortError') {
         const timeoutError = new Error(
-          `${adapter.name} request timeout after ${DEFAULT_TIMEOUT}ms`,
+          `${adapter.name} request timeout after ${timeout}ms`,
         );
 
-        if (attempt < DEFAULT_MAX_RETRIES) {
+        if (attempt < maxRetries) {
           const delay = DEFAULT_RETRY_DELAY * Math.pow(2, attempt);
           providerLogger.warn(`Request timeout, retrying in ${delay}ms...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
@@ -117,7 +119,7 @@ export function createProviderFromAdapter(
       }
 
       // Network errors
-      if (error instanceof TypeError && attempt < DEFAULT_MAX_RETRIES) {
+      if (error instanceof TypeError && attempt < maxRetries) {
         const delay = DEFAULT_RETRY_DELAY * Math.pow(2, attempt);
         providerLogger.warn(
           `Network error: ${error.message}, retrying in ${delay}ms...`,

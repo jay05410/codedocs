@@ -8,6 +8,10 @@ export interface AiProviderConfig {
   baseUrl?: string;
   temperature?: number;
   maxTokens?: number;
+  /** Request timeout in milliseconds (default: 60000 for HTTP, 120000 for CLI) */
+  timeout?: number;
+  /** Maximum retry attempts on transient failures (default: 1) */
+  maxRetries?: number;
 }
 
 export interface AiProvider {

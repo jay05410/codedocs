@@ -17,6 +17,8 @@ const aiConfigSchema = z.object({
   model: z.string(),
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
+  timeout: z.number().optional(),
+  maxRetries: z.number().optional(),
   features: z.object({
     domainGrouping: z.boolean().optional(),
     flowDiagrams: z.boolean().optional(),

@@ -5,9 +5,7 @@ import type { AiProvider, AiProviderConfig } from '../types.js';
 import { createOpenAiProvider } from './openai.js';
 import { createClaudeProvider } from './claude.js';
 import { createGeminiProvider } from './gemini.js';
-import { createGlmProvider } from './glm.js';
-import { createOllamaProvider } from './ollama.js';
-import { createCustomProvider } from './custom.js';
+import { createGlmProvider, createOllamaProvider, createCustomProvider } from './openai-compat.js';
 import { createCliProvider } from './cli-provider.js';
 
 /**
@@ -39,7 +37,5 @@ export function createAiProvider(config: AiProviderConfig): AiProvider {
 export { createOpenAiProvider } from './openai.js';
 export { createClaudeProvider } from './claude.js';
 export { createGeminiProvider } from './gemini.js';
-export { createGlmProvider } from './glm.js';
-export { createOllamaProvider } from './ollama.js';
-export { createCustomProvider } from './custom.js';
+export { createGlmProvider, createOllamaProvider, createCustomProvider } from './openai-compat.js';
 export { createCliProvider } from './cli-provider.js';
