@@ -8,6 +8,7 @@ import { createGeminiProvider } from './gemini.js';
 import { createGlmProvider } from './glm.js';
 import { createOllamaProvider } from './ollama.js';
 import { createCustomProvider } from './custom.js';
+import { createCliProvider } from './cli-provider.js';
 
 /**
  * Create an AI provider based on configuration
@@ -26,6 +27,9 @@ export function createAiProvider(config: AiProviderConfig): AiProvider {
       return createOllamaProvider(config);
     case 'custom':
       return createCustomProvider(config);
+    case 'codex-cli':
+    case 'gemini-cli':
+      return createCliProvider(config);
     default:
       throw new Error(`Unknown provider: ${config.provider}`);
   }
@@ -38,3 +42,4 @@ export { createGeminiProvider } from './gemini.js';
 export { createGlmProvider } from './glm.js';
 export { createOllamaProvider } from './ollama.js';
 export { createCustomProvider } from './custom.js';
+export { createCliProvider } from './cli-provider.js';

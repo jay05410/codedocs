@@ -2,7 +2,7 @@
 // Core types for AI provider abstraction
 
 export interface AiProviderConfig {
-  provider: 'openai' | 'claude' | 'gemini' | 'glm' | 'ollama' | 'custom';
+  provider: 'openai' | 'claude' | 'gemini' | 'glm' | 'ollama' | 'custom' | 'codex-cli' | 'gemini-cli';
   model: string;
   apiKey?: string;
   baseUrl?: string;
