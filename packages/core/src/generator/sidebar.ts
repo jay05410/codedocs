@@ -87,16 +87,17 @@ export class SidebarGenerator {
    * Find which section a page belongs to based on path
    */
   private findSectionForPage(page: GeneratedPage, sections: SectionConfig[]): SectionConfig | null {
-    // Match by path prefix
+    // Match by path prefix — skip 'auto' (empty prefix matches everything)
     for (const section of sections) {
+      if (section.type === 'auto') continue;
       const prefix = this.getSectionPathPrefix(section);
-      if (page.path.startsWith(prefix)) {
+      if (prefix && page.path.startsWith(prefix)) {
         return section;
       }
     }
 
-    // Special case: overview
-    if (page.path === 'overview.md') {
+    // overview.md and index.md belong to the auto section
+    if (page.path === 'overview.md' || page.path === 'index.md') {
       return sections.find(s => s.type === 'auto') || null;
     }
 
