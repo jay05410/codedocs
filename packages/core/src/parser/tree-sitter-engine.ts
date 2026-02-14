@@ -58,13 +58,17 @@ export interface TsNode {
 export type TsLanguage =
   | 'typescript'
   | 'tsx'
+  | 'javascript'
+  | 'jsx'
   | 'python'
   | 'go'
   | 'java'
   | 'kotlin'
   | 'php'
   | 'c'
-  | 'cpp';
+  | 'cpp'
+  | 'html'
+  | 'css';
 
 /**
  * Map of language to npm package name containing the .wasm grammar
@@ -72,6 +76,8 @@ export type TsLanguage =
 const GRAMMAR_PACKAGES: Record<TsLanguage, string> = {
   typescript: 'tree-sitter-typescript',
   tsx: 'tree-sitter-typescript',
+  javascript: 'tree-sitter-javascript',
+  jsx: 'tree-sitter-javascript',
   python: 'tree-sitter-python',
   go: 'tree-sitter-go',
   java: 'tree-sitter-java',
@@ -79,6 +85,8 @@ const GRAMMAR_PACKAGES: Record<TsLanguage, string> = {
   php: 'tree-sitter-php',
   c: 'tree-sitter-c',
   cpp: 'tree-sitter-cpp',
+  html: 'tree-sitter-html',
+  css: 'tree-sitter-css',
 };
 
 /**
@@ -140,6 +148,9 @@ export async function loadLanguage(lang: TsLanguage): Promise<any> {
       wasmPath = esmRequire.resolve(`${packageName}/tsx.wasm`);
     } else if (lang === 'typescript') {
       wasmPath = esmRequire.resolve(`${packageName}/typescript.wasm`);
+    } else if (lang === 'jsx') {
+      // JSX uses the same grammar as JavaScript
+      wasmPath = esmRequire.resolve(`${packageName}/tree-sitter-javascript.wasm`);
     } else {
       // Most grammars: package-name/tree-sitter-lang.wasm
       const wasmFile = `tree-sitter-${lang}.wasm`;
@@ -241,6 +252,10 @@ export function detectLanguage(filePath: string): TsLanguage | null {
   const extMap: Record<string, TsLanguage> = {
     ts: 'typescript',
     tsx: 'tsx',
+    js: 'javascript',
+    jsx: 'jsx',
+    mjs: 'javascript',
+    cjs: 'javascript',
     py: 'python',
     go: 'go',
     java: 'java',
@@ -253,6 +268,11 @@ export function detectLanguage(filePath: string): TsLanguage | null {
     cc: 'cpp',
     cxx: 'cpp',
     hpp: 'cpp',
+    html: 'html',
+    htm: 'html',
+    vue: 'html',
+    svelte: 'html',
+    css: 'css',
   };
   return extMap[ext || ''] || null;
 }

@@ -1,4 +1,5 @@
 import type { ParserPlugin, SourceFile, ParseResult, EndpointInfo, ServiceInfo, TypeInfo, DependencyInfo } from '@codedocs/core';
+import { extractScriptBlock, extractTemplateBlock, extractFunctionBody } from '@codedocs/core';
 
 export interface VueParserOptions {
   /** Detect Nuxt.js server routes and pages */
@@ -121,16 +122,6 @@ function parseVueComponent(file: SourceFile): { type: TypeInfo | null; deps: Dep
     } : null,
     deps,
   };
-}
-
-function extractScriptBlock(content: string): string | null {
-  const match = content.match(/<script[^>]*>([\s\S]*?)<\/script>/);
-  return match ? match[1] : null;
-}
-
-function extractTemplateBlock(content: string): string | null {
-  const match = content.match(/<template>([\s\S]*?)<\/template>/);
-  return match ? match[1] : null;
 }
 
 function extractComponentName(filePath: string): string {
@@ -508,26 +499,6 @@ function extractFunctionComment(content: string, index: number): string | undefi
   }
   if (lastLine?.startsWith('//')) return lastLine.replace(/^\/\/\s?/, '');
   return undefined;
-}
-
-function extractFunctionBody(content: string, funcName: string): string | null {
-  const idx = content.indexOf(`function ${funcName}`);
-  const constIdx = content.indexOf(`const ${funcName}`);
-  const start = idx !== -1 ? idx : constIdx;
-  if (start === -1) return null;
-
-  const braceIdx = content.indexOf('{', start);
-  if (braceIdx === -1) return null;
-
-  let depth = 1;
-  let i = braceIdx + 1;
-  while (i < content.length && depth > 0) {
-    if (content[i] === '{') depth++;
-    else if (content[i] === '}') depth--;
-    i++;
-  }
-
-  return content.substring(braceIdx + 1, i - 1);
 }
 
 function extractReturnedMethods(content: string, funcName: string): string[] {

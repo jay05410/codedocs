@@ -1,4 +1,5 @@
 import type { ParserPlugin, SourceFile, ParseResult, EndpointInfo, ServiceInfo, TypeInfo, DependencyInfo } from '@codedocs/core';
+import { extractScriptBlock, inferTypeFromDefault } from '@codedocs/core';
 
 export interface SvelteParserOptions {
   /** Detect SvelteKit routes and server endpoints */
@@ -113,12 +114,6 @@ function parseSvelteComponent(file: SourceFile): { type: TypeInfo | null; deps: 
   };
 }
 
-function extractScriptBlock(content: string): string | null {
-  // Prefer <script lang="ts"> or <script>
-  const match = content.match(/<script[^>]*>([\s\S]*?)<\/script>/);
-  return match ? match[1] : null;
-}
-
 function extractComponentName(filePath: string): string {
   const base = filePath.split('/').pop() || '';
   return base.replace(/\.svelte$/, '');
@@ -157,7 +152,7 @@ function extractSvelteProps(script: string, fullContent: string): { name: string
 
     props.push({
       name,
-      type: type || inferType(defaultValue),
+      type: type || inferTypeFromDefault(defaultValue),
       required: !defaultValue,
       description: comment,
     });
@@ -524,15 +519,3 @@ function parseTsFields(body: string): { name: string; type: string; required: bo
   return fields;
 }
 
-function inferType(defaultValue?: string): string {
-  if (!defaultValue) return 'unknown';
-  const trimmed = defaultValue.trim();
-  if (trimmed === 'true' || trimmed === 'false') return 'boolean';
-  if (/^['"`]/.test(trimmed)) return 'string';
-  if (/^\d/.test(trimmed)) return 'number';
-  if (trimmed.startsWith('[')) return 'array';
-  if (trimmed.startsWith('{')) return 'object';
-  if (trimmed === 'null') return 'null';
-  if (trimmed === 'undefined') return 'undefined';
-  return 'unknown';
-}
