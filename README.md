@@ -9,7 +9,7 @@ AI-powered code documentation generator. Analyze your codebase, generate beautif
 | Self-hosted | Yes | No | No | Yes |
 | Private repos | Yes | Risk* | No | Yes |
 | Custom parsers | Plugin system | No | No | No |
-| Multi-LLM | OpenAI, Claude, Gemini, GLM, Ollama | Fixed | Fixed | Fixed |
+| Multi-LLM | OpenAI, Claude, Gemini, GLM, Ollama, Codex CLI, Gemini CLI | Fixed | Fixed | Fixed |
 | Air-gapped | Yes (Ollama) | No | No | No |
 | i18n | ko/en/ja/zh | English | English | English |
 | Static site output | Yes | No | No | No |
@@ -62,7 +62,7 @@ export default {
 
   // AI provider for enhanced documentation
   ai: {
-    provider: 'openai',        // openai | claude | gemini | glm | ollama
+    provider: 'openai',        // openai | claude | gemini | glm | ollama | custom | codex-cli | gemini-cli
     model: 'gpt-5.2',
     apiKey: process.env.OPENAI_API_KEY,
     features: {
@@ -163,6 +163,34 @@ export default defineConfig({
 `codedocs init` automatically detects your tech stack by scanning:
 - `package.json`, `build.gradle`, `pom.xml`, `go.mod`, `requirements.txt`
 - Suggests appropriate parsers based on detected frameworks
+
+### CLI-Based Providers (No API Key)
+
+Use Codex CLI or Gemini CLI as AI backends — they handle OAuth authentication natively, no API key required:
+
+```typescript
+ai: {
+  provider: 'codex-cli',    // or 'gemini-cli'
+  model: 'gpt-4.1',
+}
+```
+
+Requires the CLI tool to be installed and authenticated:
+```bash
+npm install -g @openai/codex   # then: codex auth login
+npm install -g @google/gemini-cli  # then: gemini auth login
+```
+
+### Tree-sitter AST Parsing
+
+Optional AST-based parsing engine using [Tree-sitter](https://tree-sitter.github.io/) WASM for higher accuracy than regex-based parsers. Supports 9 languages: TypeScript, TSX, Python, Go, Java, Kotlin, PHP, C, C++.
+
+```bash
+# Install optional dependency
+npm install web-tree-sitter tree-sitter-typescript  # add grammars as needed
+```
+
+Falls back to regex parsers when tree-sitter is not installed.
 
 ### AI-Enhanced Documentation
 
@@ -310,6 +338,7 @@ npx turbo run dev
 | Diagrams | Mermaid.js |
 | UI | React |
 | CLI | Commander.js + Inquirer.js |
+| Code Parsing | Tree-sitter WASM (optional) |
 | Testing | Vitest |
 
 ## License

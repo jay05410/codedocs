@@ -9,7 +9,7 @@ AI 기반 코드 문서 자동 생성기. 코드베이스를 분석하고, 아�
 | 셀프 호스팅 | O | X | X | O |
 | 프라이빗 레포 | O | 위험* | X | O |
 | 커스텀 파서 | 플러그인 시스템 | X | X | X |
-| 멀티 LLM | OpenAI, Claude, Gemini, GLM, Ollama | 고정 | 고정 | 고정 |
+| 멀티 LLM | OpenAI, Claude, Gemini, GLM, Ollama, Codex CLI, Gemini CLI | 고정 | 고정 | 고정 |
 | 에어갭 환경 | O (Ollama) | X | X | X |
 | 다국어 | 한/영/일/중 | 영어 | 영어 | 영어 |
 | 정적 사이트 출력 | O | X | X | X |
@@ -62,7 +62,7 @@ export default {
 
   // AI 프로바이더 설정
   ai: {
-    provider: 'openai',        // openai | claude | gemini | glm | ollama
+    provider: 'openai',        // openai | claude | gemini | glm | ollama | custom | codex-cli | gemini-cli
     model: 'gpt-5.2',
     apiKey: process.env.OPENAI_API_KEY,
     features: {
@@ -164,6 +164,34 @@ export default defineConfig({
 `codedocs init` 실행 시 프로젝트의 기술 스택을 자동으로 감지합니다:
 - `package.json`, `build.gradle`, `pom.xml`, `go.mod`, `requirements.txt` 등을 스캔
 - 감지된 프레임워크에 맞는 파서를 자동 추천
+
+### CLI 기반 프로바이더 (API 키 불필요)
+
+Codex CLI 또는 Gemini CLI를 AI 백엔드로 사용할 수 있습니다. OAuth 인증을 자체적으로 처리하므로 API 키가 필요 없습니다:
+
+```typescript
+ai: {
+  provider: 'codex-cli',    // 또는 'gemini-cli'
+  model: 'gpt-4.1',
+}
+```
+
+CLI 도구 설치 및 인증이 필요합니다:
+```bash
+npm install -g @openai/codex   # 이후: codex auth login
+npm install -g @google/gemini-cli  # 이후: gemini auth login
+```
+
+### Tree-sitter AST 파싱
+
+정규식 기반 파서보다 높은 정확도를 위한 선택적 AST 기반 파싱 엔진입니다. [Tree-sitter](https://tree-sitter.github.io/) WASM을 사용하며 9개 언어를 지원합니다: TypeScript, TSX, Python, Go, Java, Kotlin, PHP, C, C++.
+
+```bash
+# 선택적 의존성 설치
+npm install web-tree-sitter tree-sitter-typescript  # 필요한 문법 추가
+```
+
+Tree-sitter가 설치되지 않은 경우 기존 정규식 파서로 자동 폴백됩니다.
 
 ### AI 강화 문서
 
@@ -322,6 +350,7 @@ npx turbo run dev
 | 다이어그램 | Mermaid.js |
 | UI | React |
 | CLI | Commander.js + Inquirer.js |
+| 코드 파싱 | Tree-sitter WASM (선택적) |
 | 테스트 | Vitest |
 
 ## 라이선스
