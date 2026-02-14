@@ -22,6 +22,7 @@ export { FileReader } from './parser/file-reader.js';
 export { AnalysisCache } from './parser/cache.js';
 export type { CacheData, CacheEntry } from './parser/cache.js';
 export type { AiProvider, AiProviderConfig } from './ai/types.js';
+export { AI_DEFAULTS } from './ai/types.js';
 export { createAiProvider } from './ai/providers/index.js';
 export { ExampleGenerator, formatExampleAsMarkdown } from './ai/example-generator.js';
 export type { GeneratedExample, RequestExample, ResponseExample, ExampleGeneratorOptions } from './ai/example-generator.js';
@@ -40,7 +41,7 @@ export { compareAnalysisResults, generateReleaseNote, formatReleaseNote } from '
 export { generateVersionComparison, formatVersionComparisonMarkdown } from './changelog/version-compare.js';
 export type { VersionComparison, ComparisonSummary, BreakingChange, EndpointDiff, EntityDiff, TypeDiff, ServiceDiff } from './changelog/version-compare.js';
 export type { Locale, I18nStrings } from './i18n/index.js';
-export { getStrings, getSupportedLocales } from './i18n/index.js';
+export { getStrings, getSupportedLocales, getLocaleName, LOCALE_NAMES } from './i18n/index.js';
 export type { PromptTemplate } from './ai/prompts/index.js';
 export { getPrompt, getPromptKeys, fillTemplate } from './ai/prompts/index.js';
 export { SemanticSearch } from './search/index.js';
@@ -48,6 +49,7 @@ export type { SearchResult, SearchOptions, SearchIndex, SearchDocument, Embeddin
 export { DiagramGenerator } from './diagram/index.js';
 export type { DiagramType, DiagramOptions, DiagramResult } from './diagram/index.js';
 export type { DomainGroup, GroupingResult, GroupingOptions } from './ai/grouping.js';
-export { groupByDomain, groupByHeuristic } from './ai/grouping.js';
+export { groupByDomain, groupByHeuristic, groupComponentsByHeuristic } from './ai/grouping.js';
 export type { Memo, MemoStore, MemoDisplayItem } from './memo/types.js';
 export { createEmptyMemoStore, parseMemoStore, mergeMemoStores } from './memo/index.js';
+export { escapeHtml, escapeMd, toKebab, extractFrontmatter } from './utils/index.js';

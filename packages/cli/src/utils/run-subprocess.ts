@@ -17,7 +17,6 @@ export async function runSubprocess(
   return new Promise((resolve, reject) => {
     const cmd = spawn('npx', ['codedocs', ...args], {
       stdio: options.verbose ? 'inherit' : 'pipe',
-      shell: true,
     });
 
     let output = '';

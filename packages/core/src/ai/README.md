@@ -187,17 +187,35 @@ Extracts JSON from LLM response text, handling markdown code fences and surround
 
 ```
 packages/core/src/ai/
-├── index.ts              # Main export
-├── types.ts              # Core types and utilities
+├── types.ts              # Core types, utilities, AI_DEFAULTS
 ├── providers/
 │   ├── index.ts          # Provider factory
 │   ├── openai.ts         # OpenAI provider
 │   ├── claude.ts         # Anthropic Claude provider
 │   ├── gemini.ts         # Google Gemini provider
+│   ├── glm.ts            # GLM provider
 │   ├── ollama.ts         # Ollama provider
 │   └── custom.ts         # Custom endpoint provider
+├── prompts/
+│   └── index.ts          # English-only prompt templates with i18n support
+├── example-generator.ts  # AI-powered request/response example generator
+├── grouping.ts           # AI/heuristic domain grouping
 └── README.md             # This file
 ```
+
+## Design Decisions
+
+### English-Only Prompts
+AI prompts are stored in English only. For non-English locales, a locale instruction is appended:
+"IMPORTANT: Write all text content in {Language}."
+This reduces token usage by ~30% compared to maintaining full translations per locale.
+
+### AI_DEFAULTS
+Default limits for AI features are centralized in `types.ts` as `AI_DEFAULTS`:
+- `maxDomainGroups: 8` - Maximum domain groups for sidebar
+- `maxExampleEndpoints: 15` - Maximum endpoints for example generation
+- `maxComponentDescriptions: 20` - Maximum component descriptions
+- `minGroupSize: 2` - Minimum group size before merging into "Other"
 
 ## Error Handling
 

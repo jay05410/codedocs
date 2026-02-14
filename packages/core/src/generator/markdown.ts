@@ -1,9 +1,10 @@
 import { readdir, readFile } from 'fs/promises';
 import { join, resolve, extname, basename } from 'path';
-import type { AnalysisResult, EndpointInfo, EntityInfo, ServiceInfo } from '../parser/types.js';
+import type { AnalysisResult, EndpointInfo, EntityInfo, ServiceInfo, TypeInfo } from '../parser/types.js';
 import type { GeneratorConfig, GeneratedPage, PageMeta, SectionConfig } from './types.js';
 import { getStrings, type Locale } from '../i18n/index.js';
 import type { I18nStrings } from '../i18n/index.js';
+import { escapeHtml, escapeMd, toKebab, extractFrontmatter } from '../utils/index.js';
 export type { PageMeta } from './types.js';
 
 /**
@@ -34,6 +35,12 @@ export class MarkdownGenerator {
         case 'entities':
           pages.push(...this.generateEntityPages(analysis.entities));
           break;
+        case 'components':
+          pages.push(...this.generateComponentPages(analysis.types));
+          break;
+        case 'services':
+          pages.push(...this.generateServicePages(analysis.services));
+          break;
         case 'architecture':
           pages.push(this.generateArchitecturePage(analysis));
           break;
@@ -44,6 +51,8 @@ export class MarkdownGenerator {
           // Auto mode includes all available sections
           pages.push(...this.generateEndpointPages(analysis.endpoints));
           pages.push(...this.generateEntityPages(analysis.entities));
+          pages.push(...this.generateComponentPages(analysis.types));
+          pages.push(...this.generateServicePages(analysis.services));
           pages.push(this.generateArchitecturePage(analysis));
           break;
         case 'custom':
@@ -106,10 +115,7 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
 
 ## ${this.s.overview.quickLinks}
 
-- [${this.s.overview.apiEndpoints}](./api/)
-- [${this.s.overview.databaseEntities}](./entities/)
-- [${this.s.overview.architectureOverview}](./architecture.md)
-- [${this.s.overview.changelog}](./changelog.md)
+${this.buildQuickLinks(analysis)}
 `;
 
     return {
@@ -320,6 +326,164 @@ ${metadata.parsers.map(p => `- ${p}`).join('\n')}
 
     // Source file
     content += `<details>\n<summary>${this.s.endpoint.source}</summary>\n\n\`${entity.filePath}\`\n\n</details>\n`;
+
+    return content;
+  }
+
+  /**
+   * Build conditional quick links based on available data
+   */
+  private buildQuickLinks(analysis: AnalysisResult): string {
+    const links: string[] = [];
+    if (analysis.endpoints.length > 0) {
+      links.push(`- [${this.s.overview.apiEndpoints}](./api/)`);
+    }
+    if (analysis.entities.length > 0) {
+      links.push(`- [${this.s.overview.databaseEntities}](./entities/)`);
+    }
+    const components = this.filterComponents(analysis.types);
+    if (components.length > 0) {
+      links.push(`- [${this.s.overview.components}](./components/)`);
+    }
+    if (analysis.services.length > 0) {
+      links.push(`- [${this.s.overview.hooksAndServices}](./hooks/)`);
+    }
+    links.push(`- [${this.s.overview.architectureOverview}](./architecture.md)`);
+    links.push(`- [${this.s.overview.changelog}](./changelog.md)`);
+    return links.join('\n');
+  }
+
+  /**
+   * Filter TypeInfo to extract UI components (exclude DTOs, enums, Props interfaces)
+   */
+  private filterComponents(types: TypeInfo[]): TypeInfo[] {
+    return types.filter((t) => {
+      // Include 'type' kind (React components are stored as kind: 'type')
+      // Also include 'interface' that look like components (PascalCase, no Props/DTO suffix)
+      if (t.kind === 'enum' || t.kind === 'dto' || t.kind === 'input' || t.kind === 'response') {
+        return false;
+      }
+      // Exclude Props/DTO/Request/Response type interfaces
+      const name = t.name;
+      if (/Props$|DTO$|Dto$|Request$|Response$|Input$|Args$/.test(name)) {
+        return false;
+      }
+      // Must be PascalCase (starts with uppercase)
+      return /^[A-Z]/.test(name);
+    });
+  }
+
+  /**
+   * Generate component documentation pages from TypeInfo
+   */
+  generateComponentPages(types: TypeInfo[]): GeneratedPage[] {
+    const pages: GeneratedPage[] = [];
+    const components = this.filterComponents(types);
+
+    components.forEach((comp, index) => {
+      const content = this.generateComponentPageContent(comp, types);
+      const path = `components/${toKebab(comp.name)}.md`;
+
+      pages.push({
+        path,
+        title: comp.name,
+        content,
+        sidebarPosition: 200 + index,
+      });
+    });
+
+    return pages;
+  }
+
+  /**
+   * Generate content for a single component page
+   */
+  private generateComponentPageContent(comp: TypeInfo, allTypes: TypeInfo[]): string {
+    let content = `# ${comp.name}\n\n`;
+
+    if (comp.description) {
+      content += `${comp.description}\n\n`;
+    }
+
+    // Props table - find matching Props interface
+    const propsType = allTypes.find(
+      (t) => t.name === `${comp.name}Props` || t.name === `${comp.name}Property`
+    );
+    const propsFields = propsType?.fields || comp.fields;
+
+    content += `## ${this.s.component.props}\n\n`;
+
+    if (propsFields.length > 0) {
+      content += `| ${this.s.endpoint.name} | ${this.s.endpoint.type} | ${this.s.endpoint.required} | ${this.s.endpoint.description} |\n`;
+      content += `|------|------|----------|-------------|\n`;
+
+      propsFields.forEach((field) => {
+        const req = field.required ? '✓' : '';
+        const desc = field.description ? escapeMd(field.description) : '';
+        content += `| ${escapeMd(field.name)} | \`${escapeMd(field.type)}\` | ${req} | ${desc} |\n`;
+      });
+      content += '\n';
+    } else {
+      content += `${this.s.component.noProps}\n\n`;
+    }
+
+    // Source file
+    content += `<details>\n<summary>${this.s.endpoint.source}</summary>\n\n\`${comp.filePath}\`\n\n</details>\n`;
+
+    return content;
+  }
+
+  /**
+   * Generate service/hook documentation pages from ServiceInfo
+   */
+  generateServicePages(services: ServiceInfo[]): GeneratedPage[] {
+    const pages: GeneratedPage[] = [];
+
+    services.forEach((svc, index) => {
+      const content = this.generateServicePageContent(svc);
+      const path = `hooks/${toKebab(svc.name)}.md`;
+
+      pages.push({
+        path,
+        title: svc.name,
+        content,
+        sidebarPosition: 300 + index,
+      });
+    });
+
+    return pages;
+  }
+
+  /**
+   * Generate content for a single service/hook page
+   */
+  private generateServicePageContent(svc: ServiceInfo): string {
+    let content = `# ${svc.name}\n\n`;
+
+    if (svc.description) {
+      content += `${svc.description}\n\n`;
+    }
+
+    // Methods
+    if (svc.methods.length > 0) {
+      content += `## ${this.s.component.methods}\n\n`;
+      svc.methods.forEach((method) => {
+        content += `- \`${escapeMd(method)}\`\n`;
+      });
+      content += '\n';
+    }
+
+    // Dependencies
+    if (svc.dependencies.length > 0) {
+      content += `## ${this.s.component.dependencies}\n\n`;
+      svc.dependencies.forEach((dep) => {
+        content += `- \`${escapeMd(dep)}\`\n`;
+      });
+      content += '\n';
+    }
+
+    // Source file
+    content += `<details>\n<summary>${this.s.endpoint.source}</summary>\n\n\`${svc.filePath}\`\n\n</details>\n`;
 
     return content;
   }
@@ -620,35 +784,6 @@ export function generateMetaTags(meta: PageMeta, siteTitle?: string): string {
   return tags.join('\n    ');
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/**
- * Convert CamelCase to kebab-case
- */
-export function toKebab(name: string): string {
-  return name
-    .replace(/([a-z])([A-Z])/g, '$1-$2')
-    .replace(/[\s_]+/g, '-')
-    .toLowerCase();
-}
-
-/**
- * Escape markdown special characters
- */
-export function escapeMd(text: string): string {
-  return text
-    .replace(/\|/g, '\\|')
-    .replace(/\[/g, '\\[')
-    .replace(/\]/g, '\\]')
-    .replace(/`/g, '\\`');
-}
-
 /**
  * Generate method badge for HTTP methods
  */
@@ -663,24 +798,4 @@ export function methodBadge(method: string): string {
   };
   const icon = colors[upper] || '⚪';
   return `${icon} **${upper}**`;
-}
-
-/**
- * Extract YAML frontmatter from markdown content
- */
-function extractFrontmatter(content: string): { meta: Record<string, string>; body: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (!match) return { meta: {}, body: content };
-
-  const meta: Record<string, string> = {};
-  for (const line of match[1].split('\n')) {
-    const colonIdx = line.indexOf(':');
-    if (colonIdx > 0) {
-      const key = line.slice(0, colonIdx).trim();
-      const value = line.slice(colonIdx + 1).trim().replace(/^["']|["']$/g, '');
-      meta[key] = value;
-    }
-  }
-
-  return { meta, body: match[2] };
 }

@@ -1,6 +1,8 @@
+import type { Locale } from '../i18n/index.js';
+
 export interface GeneratorConfig {
   outputDir: string;
-  locale: 'ko' | 'en' | 'ja' | 'zh';
+  locale: Locale;
   sections: SectionConfig[];
   pageOverrides?: Record<string, PageMeta>;
   baseDir?: string;  // Base directory for resolving custom page paths
@@ -9,7 +11,7 @@ export interface GeneratorConfig {
 export interface SectionConfig {
   id: string;
   label: string;
-  type: 'auto' | 'endpoints' | 'entities' | 'architecture' | 'changelog' | 'custom';
+  type: 'auto' | 'endpoints' | 'entities' | 'components' | 'services' | 'architecture' | 'changelog' | 'custom';
   dir?: string;  // for type='custom'
 }
 

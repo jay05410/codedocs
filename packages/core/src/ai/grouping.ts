@@ -2,16 +2,19 @@
 // AI-powered domain grouping for API endpoints and entities
 
 import type { AiProvider } from './types.js';
-import type { EndpointInfo, EntityInfo } from '../parser/types.js';
+import type { EndpointInfo, EntityInfo, TypeInfo, ServiceInfo } from '../parser/types.js';
 import { getPrompt, fillTemplate } from './prompts/index.js';
 import { extractJson } from './types.js';
 import type { Locale } from '../i18n/index.js';
+import { toKebab } from '../utils/index.js';
 
 export interface DomainGroup {
   name: string;
   description: string;
-  endpoints: string[];  // endpoint paths/names that belong to this group
-  entities: string[];   // entity names that belong to this group
+  endpoints: string[];    // endpoint paths/names that belong to this group
+  entities: string[];     // entity names that belong to this group
+  components?: string[];  // UI component names (React/Vue/Svelte)
+  services?: string[];    // hook/store/service names
 }
 
 export interface GroupingResult {
@@ -86,6 +89,8 @@ export async function groupByDomain(
       description: g.description,
       endpoints: g.endpoints.filter((ep) => typeof ep === 'string'),
       entities: g.entities.filter((ent) => typeof ent === 'string'),
+      ...(Array.isArray(g.components) ? { components: g.components.filter((c) => typeof c === 'string') } : {}),
+      ...(Array.isArray(g.services) ? { services: g.services.filter((s) => typeof s === 'string') } : {}),
     }));
 
   // Merge small groups
@@ -213,7 +218,8 @@ export function mergeGroups(groups: DomainGroup[], minGroupSize: number): Domain
   const smallGroups: DomainGroup[] = [];
 
   for (const group of groups) {
-    const totalItems = group.endpoints.length + group.entities.length;
+    const totalItems = group.endpoints.length + group.entities.length
+      + (group.components?.length || 0) + (group.services?.length || 0);
     if (totalItems >= minGroupSize) {
       largeGroups.push(group);
     } else {
@@ -228,17 +234,89 @@ export function mergeGroups(groups: DomainGroup[], minGroupSize: number): Domain
       description: 'Miscellaneous endpoints and entities',
       endpoints: [],
       entities: [],
+      components: [],
+      services: [],
     };
 
     for (const group of smallGroups) {
       otherGroup.endpoints.push(...group.endpoints);
       otherGroup.entities.push(...group.entities);
+      if (group.components) otherGroup.components!.push(...group.components);
+      if (group.services) otherGroup.services!.push(...group.services);
     }
+
+    // Only include components/services arrays if they have items
+    if (otherGroup.components!.length === 0) delete otherGroup.components;
+    if (otherGroup.services!.length === 0) delete otherGroup.services;
 
     largeGroups.push(otherGroup);
   }
 
   return largeGroups;
+}
+
+/**
+ * Fallback grouping for UI components and services by file path directory
+ */
+export function groupComponentsByHeuristic(
+  types: TypeInfo[],
+  services: ServiceInfo[]
+): DomainGroup[] {
+  const groupMap = new Map<string, DomainGroup>();
+
+  // Filter to actual UI components (PascalCase, exclude Props/DTO suffixes)
+  const components = types.filter((t) => {
+    if (t.kind === 'enum' || t.kind === 'dto' || t.kind === 'input' || t.kind === 'response') {
+      return false;
+    }
+    if (/Props$|DTO$|Dto$|Request$|Response$|Input$|Args$/.test(t.name)) {
+      return false;
+    }
+    return /^[A-Z]/.test(t.name);
+  });
+
+  // Group components by parent directory
+  for (const comp of components) {
+    const parts = comp.filePath.replace(/\\/g, '/').split('/');
+    // Use the directory name containing the component file
+    const dirName = parts.length >= 2 ? parts[parts.length - 2] : 'Other';
+    const groupName = capitalize(dirName);
+
+    if (!groupMap.has(groupName)) {
+      groupMap.set(groupName, {
+        name: groupName,
+        description: `UI components in ${groupName.toLowerCase()}`,
+        endpoints: [],
+        entities: [],
+        components: [],
+        services: [],
+      });
+    }
+
+    groupMap.get(groupName)!.components!.push(comp.name);
+  }
+
+  // Group services/hooks by parent directory
+  for (const svc of services) {
+    const parts = svc.filePath.replace(/\\/g, '/').split('/');
+    const dirName = parts.length >= 2 ? parts[parts.length - 2] : 'Other';
+    const groupName = capitalize(dirName);
+
+    if (!groupMap.has(groupName)) {
+      groupMap.set(groupName, {
+        name: groupName,
+        description: `Services and hooks in ${groupName.toLowerCase()}`,
+        endpoints: [],
+        entities: [],
+        components: [],
+        services: [],
+      });
+    }
+
+    groupMap.get(groupName)!.services!.push(svc.name);
+  }
+
+  return Array.from(groupMap.values());
 }
 
 /**

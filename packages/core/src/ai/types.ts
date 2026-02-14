@@ -27,6 +27,17 @@ export interface ChatOptions {
 }
 
 /**
+ * Default limits for AI-powered features.
+ * Used by generate command and can be overridden via config.
+ */
+export const AI_DEFAULTS = {
+  maxDomainGroups: 8,
+  maxExampleEndpoints: 15,
+  maxComponentDescriptions: 20,
+  minGroupSize: 2,
+} as const;
+
+/**
  * Extract JSON from LLM response text
  * Handles markdown code fences and surrounding text
  */

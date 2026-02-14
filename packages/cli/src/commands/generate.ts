@@ -3,9 +3,9 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { readFileSync, existsSync, mkdirSync, writeFileSync, readdirSync, statSync } from 'fs';
 import { resolve, join, dirname } from 'path';
-import { loadConfig, getStrings, type Locale, type I18nStrings, type SectionConfig } from '@codedocs/core';
+import { loadConfig, getStrings, getLocaleName, AI_DEFAULTS, type Locale, type I18nStrings, type SectionConfig } from '@codedocs/core';
 import { MarkdownGenerator, SidebarGenerator } from '@codedocs/core';
-import { createAiProvider, groupByDomain, groupByHeuristic, ExampleGenerator, formatExampleAsMarkdown, getPrompt, fillTemplate } from '@codedocs/core';
+import { createAiProvider, groupByDomain, groupByHeuristic, groupComponentsByHeuristic, ExampleGenerator, formatExampleAsMarkdown, getPrompt, fillTemplate } from '@codedocs/core';
 import type { AiProvider, GeneratedPage, GeneratedExample, DomainGroup, SidebarItem } from '@codedocs/core';
 import { getCliStrings, t, initLocale } from '../i18n.js';
 
@@ -152,6 +152,40 @@ export const generateCommand = new Command('generate')
         generatedCount++;
       }
 
+      // Generate component index if there are component docs
+      const componentFiles = generatedFiles.filter((f) => f.startsWith('components/'));
+      if (componentFiles.length > 0) {
+        const compIndexContent = generateSectionIndex(
+          i18n.overview.components,
+          componentFiles,
+          'components/',
+          i18n,
+        );
+        const compDir = join(outputPath, 'components');
+        if (!existsSync(compDir)) {
+          mkdirSync(compDir, { recursive: true });
+        }
+        writeFileSync(join(compDir, 'index.md'), compIndexContent, 'utf-8');
+        generatedCount++;
+      }
+
+      // Generate hooks index if there are hook/service docs
+      const hookFiles = generatedFiles.filter((f) => f.startsWith('hooks/'));
+      if (hookFiles.length > 0) {
+        const hookIndexContent = generateSectionIndex(
+          i18n.overview.hooksAndServices,
+          hookFiles,
+          'hooks/',
+          i18n,
+        );
+        const hookDir = join(outputPath, 'hooks');
+        if (!existsSync(hookDir)) {
+          mkdirSync(hookDir, { recursive: true });
+        }
+        writeFileSync(join(hookDir, 'index.md'), hookIndexContent, 'utf-8');
+        generatedCount++;
+      }
+
       // Generate _sidebar.json with domain grouping (AI or heuristic)
       spinner.text = 'Building sidebar...';
       const sidebarItems = await buildDomainSidebar(
@@ -195,7 +229,12 @@ function generateIndexPage(analysisData: any, generatedFiles: string[], s: I18nS
   // Group files by category for organized navigation
   const apiFiles = generatedFiles.filter(f => f.startsWith('api/'));
   const entityFiles = generatedFiles.filter(f => f.startsWith('entities/'));
-  const otherFiles = generatedFiles.filter(f => !f.startsWith('api/') && !f.startsWith('entities/'));
+  const componentFiles = generatedFiles.filter(f => f.startsWith('components/'));
+  const hookFiles = generatedFiles.filter(f => f.startsWith('hooks/'));
+  const otherFiles = generatedFiles.filter(f =>
+    !f.startsWith('api/') && !f.startsWith('entities/')
+    && !f.startsWith('components/') && !f.startsWith('hooks/')
+  );
 
   let sections = '';
 
@@ -225,6 +264,28 @@ function generateIndexPage(analysisData: any, generatedFiles: string[], s: I18nS
     sections += entityFiles
       .map((file) => {
         const name = file.replace('entities/', '').replace(/\.md$/, '');
+        return `- [${name}](./${file})`;
+      })
+      .join('\n');
+    sections += '\n';
+  }
+
+  if (componentFiles.length > 0) {
+    sections += `\n### ${s.overview.components}\n\n`;
+    sections += componentFiles
+      .map((file) => {
+        const name = file.replace('components/', '').replace(/\.md$/, '');
+        return `- [${name}](./${file})`;
+      })
+      .join('\n');
+    sections += '\n';
+  }
+
+  if (hookFiles.length > 0) {
+    sections += `\n### ${s.overview.hooksAndServices}\n\n`;
+    sections += hookFiles
+      .map((file) => {
+        const name = file.replace('hooks/', '').replace(/\.md$/, '');
         return `- [${name}](./${file})`;
       })
       .join('\n');
@@ -288,6 +349,32 @@ ${apiFiles
 `;
 }
 
+/**
+ * Generate a section index page for components, hooks, etc.
+ */
+function generateSectionIndex(
+  title: string,
+  files: string[],
+  prefix: string,
+  s: I18nStrings,
+): string {
+  const items = files
+    .map((file) => {
+      const name = file.replace(prefix, '').replace(/\.md$/, '');
+      return `- [${name}](./${file.replace(prefix, '')})`;
+    })
+    .join('\n');
+
+  return `# ${title}
+
+${items}
+
+---
+
+[← ${s.common.backToHome}](../index.md)
+`;
+}
+
 function calculateDirectorySize(dirPath: string): number {
   let totalSize = 0;
 
@@ -344,6 +431,24 @@ function buildEffectiveSections(configSections: SectionConfig[], analysisData: a
     sections.push({ id: 'entities', label: 'Data Models', type: 'entities' });
   }
 
+  // Add components section if UI components found (React/Vue/Svelte types)
+  const hasComponents = results.some((r: any) =>
+    Array.isArray(r.types) && r.types.some((t: any) =>
+      typeof t.name === 'string'
+      && /^[A-Z]/.test(t.name)
+      && !/Props$|DTO$|Dto$|Request$|Response$|Input$|Args$/.test(t.name)
+      && t.kind && !['enum', 'dto', 'input', 'response'].includes(t.kind)
+    )
+  );
+  if (hasComponents) {
+    sections.push({ id: 'components', label: 'Components', type: 'components' });
+  }
+
+  // Add services/hooks section if any found
+  if (summary.services > 0 || results.some((r: any) => r.services?.length > 0)) {
+    sections.push({ id: 'hooks', label: 'Hooks & Services', type: 'services' });
+  }
+
   // Always add architecture (shows dependency graph)
   sections.push({ id: 'architecture', label: 'Architecture', type: 'architecture' });
 
@@ -354,10 +459,6 @@ function buildEffectiveSections(configSections: SectionConfig[], analysisData: a
 }
 
 // ── AI Enrichment ──
-
-const LOCALE_NAMES: Record<string, string> = {
-  en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese',
-};
 
 /**
  * Merge multiple AnalysisResult objects into one combined result
@@ -395,14 +496,14 @@ async function enrichWithAI(
   const features = config.ai?.features || {};
   const locale = (config.docs?.locale || 'en') as string;
   const localeInstr = locale !== 'en'
-    ? `\nIMPORTANT: Write all text content in ${LOCALE_NAMES[locale] || locale}.`
+    ? `\nIMPORTANT: Write all text content in ${getLocaleName(locale as Locale)}.`
     : '';
 
   // 1. Example generation for API endpoints (requires explicit opt-in)
   if (features.codeExplanation) {
     const endpoints = analysis.endpoints || [];
     if (endpoints.length > 0) {
-      const maxEx = Math.min(endpoints.length, 15);
+      const maxEx = Math.min(endpoints.length, AI_DEFAULTS.maxExampleEndpoints);
       spinner.text = `Generating API examples (${maxEx} endpoints)...`;
       try {
         const exampleGen = new ExampleGenerator(provider, {
@@ -449,7 +550,59 @@ async function enrichWithAI(
     }
   }
 
-  // 2. Enhanced architecture diagram via AI
+  // 2. Component description enrichment via AI
+  if (features.codeExplanation) {
+    const componentPages = pages.filter(p => p.path.startsWith('components/'));
+    if (componentPages.length > 0) {
+      const maxComp = Math.min(componentPages.length, AI_DEFAULTS.maxComponentDescriptions);
+      spinner.text = `Generating component descriptions (${maxComp})...`;
+      try {
+        const promptTpl = getPrompt('componentDescription', 'en');
+        let enriched = 0;
+
+        for (const page of componentPages.slice(0, maxComp)) {
+          const compName = page.title;
+          const compType = (analysis.types || []).find((t: any) => t.name === compName);
+          if (!compType) continue;
+
+          const propsStr = compType.fields
+            .map((f: any) => `${f.name}: ${f.type}${f.required ? ' (required)' : ''}`)
+            .join(', ') || '(none)';
+
+          const userMsg = fillTemplate(promptTpl.user, {
+            name: compName,
+            props: propsStr,
+            hooks: '(detected from source)',
+            filePath: compType.filePath,
+          });
+
+          const description = await provider.chat([
+            { role: 'system', content: promptTpl.system + localeInstr },
+            { role: 'user', content: userMsg },
+          ]);
+
+          if (description && description.trim().length > 10) {
+            // Insert description after the H1 title
+            page.content = page.content.replace(
+              /^(# .+\n\n)/m,
+              `$1${description.trim()}\n\n`
+            );
+            enriched++;
+          }
+        }
+
+        if (options.verbose) {
+          console.log(chalk.dim(`\n  ✓ Enriched ${enriched} component descriptions`));
+        }
+      } catch (error) {
+        if (options.verbose) {
+          console.log(chalk.yellow(`\n  Component enrichment skipped: ${(error as Error).message}`));
+        }
+      }
+    }
+  }
+
+  // 3. Enhanced architecture diagram via AI
   if (features.flowDiagrams) {
     const archPage = pages.find(p => p.path === 'architecture.md');
     if (archPage && (analysis.services?.length > 0 || analysis.dependencies?.length > 0)) {
@@ -519,15 +672,20 @@ async function buildDomainSidebar(
   // Try domain grouping when applicable
   let groups: DomainGroup[] = [];
   let useDomainSidebar = false;
+  const types = analysis.types || [];
+  const services = analysis.services || [];
 
-  if (!hasExplicitSections && (endpoints.length > 0 || entities.length > 0)) {
-    // AI domain grouping
-    if (aiFeatures?.domainGrouping && aiProvider) {
+  const hasBackendData = endpoints.length > 0 || entities.length > 0;
+  const hasFrontendData = types.length > 0 || services.length > 0;
+
+  if (!hasExplicitSections && (hasBackendData || hasFrontendData)) {
+    // AI domain grouping (for backend endpoints/entities)
+    if (hasBackendData && aiFeatures?.domainGrouping && aiProvider) {
       try {
         const result = await groupByDomain(aiProvider, endpoints, entities, {
           locale: 'en',  // English prompts for token optimization
-          maxGroups: 8,
-          minGroupSize: 2,
+          maxGroups: AI_DEFAULTS.maxDomainGroups,
+          minGroupSize: AI_DEFAULTS.minGroupSize,
         });
         groups = result.groups;
         useDomainSidebar = groups.length > 0;
@@ -541,11 +699,20 @@ async function buildDomainSidebar(
       }
     }
 
-    // Heuristic fallback
-    if (!useDomainSidebar) {
+    // Heuristic fallback for backend
+    if (!useDomainSidebar && hasBackendData) {
       const result = groupByHeuristic(endpoints, entities);
       groups = result.groups;
       useDomainSidebar = groups.length > 0;
+    }
+
+    // Heuristic grouping for frontend components/services
+    if (hasFrontendData) {
+      const frontendGroups = groupComponentsByHeuristic(types, services);
+      if (frontendGroups.length > 0) {
+        groups = [...groups, ...frontendGroups];
+        useDomainSidebar = true;
+      }
     }
   }
 
@@ -600,6 +767,28 @@ function buildSidebarFromGroups(
     // Match entities in this group to entity pages
     for (const entName of group.entities) {
       const pageId = `entities/${toKebabCase(entName)}`;
+      if (usedPageIds.has(pageId)) continue;
+      const page = pages.find(p => p.path === `${pageId}.md`);
+      if (page) {
+        items.push({ type: 'doc', label: page.title, id: pageId });
+        usedPageIds.add(pageId);
+      }
+    }
+
+    // Match components in this group to component pages
+    for (const compName of (group.components || [])) {
+      const pageId = `components/${toKebabCase(compName)}`;
+      if (usedPageIds.has(pageId)) continue;
+      const page = pages.find(p => p.path === `${pageId}.md`);
+      if (page) {
+        items.push({ type: 'doc', label: page.title, id: pageId });
+        usedPageIds.add(pageId);
+      }
+    }
+
+    // Match services/hooks in this group to hook pages
+    for (const svcName of (group.services || [])) {
+      const pageId = `hooks/${toKebabCase(svcName)}`;
       if (usedPageIds.has(pageId)) continue;
       const page = pages.find(p => p.path === `${pageId}.md`);
       if (page) {

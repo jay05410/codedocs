@@ -89,15 +89,17 @@ const provider = createAiProvider({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Generate examples
-const examples = await provider.generateExamples(endpoint);
-
-// Generate explanations
-const explanation = await provider.explainCode(codeSnippet);
+// Use AI provider for chat
+const response = await provider.chat([
+  { role: 'user', content: 'Explain this code...' },
+]);
 
 // Domain grouping
 import { groupByDomain } from '@codedocs/core';
-const groups = await groupByDomain(endpoints, provider);
+const result = await groupByDomain(provider, endpoints, entities, {
+  locale: 'en',
+  maxGroups: 8,
+});
 ```
 
 Supported providers: `openai`, `claude`, `gemini`, `ollama`
@@ -202,12 +204,15 @@ const comparison = generateVersionComparison(oldResult, newResult);
 Get localized strings:
 
 ```typescript
-import { getStrings, getSupportedLocales } from '@codedocs/core';
+import { getStrings, getSupportedLocales, getLocaleName, LOCALE_NAMES } from '@codedocs/core';
 
 const strings = getStrings('en');
-console.log(strings.api.endpoint); // "Endpoint"
+console.log(strings.overview.title); // "API Documentation"
 
 const locales = getSupportedLocales(); // ['ko', 'en', 'ja', 'zh']
+
+const name = getLocaleName('ko'); // "Korean"
+console.log(LOCALE_NAMES); // { en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese' }
 ```
 
 ### Analysis Caching
@@ -305,7 +310,7 @@ The `defineConfig` function provides type-safe configuration with validation:
   source: string;                    // Source code directory
   parsers: ParserPlugin[];           // Parser plugins
   ai?: {
-    provider: 'openai' | 'claude' | 'gemini' | 'ollama';
+    provider: 'openai' | 'claude' | 'gemini' | 'glm' | 'ollama' | 'custom';
     model: string;
     apiKey: string;
     baseUrl?: string;                // For Ollama
@@ -345,6 +350,7 @@ Complete list of public exports:
 
 **AI**
 - `createAiProvider`, `ExampleGenerator`, `groupByDomain`, `groupByHeuristic`
+- `AI_DEFAULTS`, `formatExampleAsMarkdown`
 - Types: `AiProvider`, `AiProviderConfig`, `DomainGroup`
 
 **Generator**
@@ -361,7 +367,7 @@ Complete list of public exports:
 - Types: `SearchResult`, `SearchOptions`, `SearchIndex`
 
 **i18n**
-- `getStrings`, `getSupportedLocales`
+- `getStrings`, `getSupportedLocales`, `getLocaleName`, `LOCALE_NAMES`
 - Types: `Locale`, `I18nStrings`
 
 **Memo**
@@ -369,6 +375,7 @@ Complete list of public exports:
 - Types: `Memo`, `MemoStore`
 
 **Utilities**
+- `escapeHtml`, `escapeMd`, `toKebab`, `extractFrontmatter`
 - `Logger`, `logger`
 - `getPrompt`, `fillTemplate`
 

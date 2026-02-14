@@ -4,15 +4,17 @@ import type { Locale } from '../i18n/index.js';
 
 describe('AI Prompts', () => {
   describe('getPromptKeys', () => {
-    it('returns all 6 prompt keys', () => {
+    it('returns all 8 prompt keys', () => {
       const keys = getPromptKeys();
-      expect(keys).toHaveLength(6);
+      expect(keys).toHaveLength(8);
       expect(keys).toContain('domainGrouping');
       expect(keys).toContain('codeExplanation');
       expect(keys).toContain('flowDiagram');
       expect(keys).toContain('releaseNote');
       expect(keys).toContain('apiSummary');
       expect(keys).toContain('entityDescription');
+      expect(keys).toContain('componentGrouping');
+      expect(keys).toContain('componentDescription');
     });
   });
 
@@ -23,24 +25,28 @@ describe('AI Prompts', () => {
       expect(prompt.user).toBeTruthy();
     });
 
-    it('returns English prompts for en locale', () => {
+    it('returns English prompts for en locale without locale instruction', () => {
       const prompt = getPrompt('apiSummary', 'en');
       expect(prompt.system).toContain('technical writer');
+      expect(prompt.system).not.toContain('IMPORTANT: Write all text content in');
     });
 
-    it('returns Korean prompts for ko locale', () => {
+    it('returns English prompts with Korean locale instruction for ko locale', () => {
       const prompt = getPrompt('apiSummary', 'ko');
-      expect(prompt.system).toContain('기술 작성자');
+      expect(prompt.system).toContain('technical writer');
+      expect(prompt.system).toContain('IMPORTANT: Write all text content in Korean.');
     });
 
-    it('returns Japanese prompts for ja locale', () => {
+    it('returns English prompts with Japanese locale instruction for ja locale', () => {
       const prompt = getPrompt('apiSummary', 'ja');
-      expect(prompt.system).toContain('技術ライター');
+      expect(prompt.system).toContain('technical writer');
+      expect(prompt.system).toContain('IMPORTANT: Write all text content in Japanese.');
     });
 
-    it('returns Chinese prompts for zh locale', () => {
+    it('returns English prompts with Chinese locale instruction for zh locale', () => {
       const prompt = getPrompt('apiSummary', 'zh');
-      expect(prompt.system).toContain('技术作者');
+      expect(prompt.system).toContain('technical writer');
+      expect(prompt.system).toContain('IMPORTANT: Write all text content in Chinese.');
     });
 
     it('all prompt keys work for all locales', () => {

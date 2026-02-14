@@ -48,7 +48,6 @@ export const devCommand = new Command('dev')
 
       const viteProcess = spawn('npx', viteArgs, {
         stdio: ['inherit', 'pipe', 'inherit'],
-        shell: true,
       });
 
       let serverMessageShown = false;
