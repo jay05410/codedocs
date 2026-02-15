@@ -6,10 +6,9 @@ import { createOpenAiProvider } from './openai.js';
 import { createClaudeProvider } from './claude.js';
 import { createGeminiProvider } from './gemini.js';
 import { createGlmProvider, createOllamaProvider, createCustomProvider } from './openai-compat.js';
-import { createCliProvider } from './cli-provider.js';
 
 /**
- * Create an AI provider based on configuration
+ * Create an AI provider based on configuration.
  */
 export function createAiProvider(config: AiProviderConfig): AiProvider {
   switch (config.provider) {
@@ -25,9 +24,6 @@ export function createAiProvider(config: AiProviderConfig): AiProvider {
       return createOllamaProvider(config);
     case 'custom':
       return createCustomProvider(config);
-    case 'codex-cli':
-    case 'gemini-cli':
-      return createCliProvider(config);
     default:
       throw new Error(`Unknown provider: ${config.provider}`);
   }
@@ -38,4 +34,3 @@ export { createOpenAiProvider } from './openai.js';
 export { createClaudeProvider } from './claude.js';
 export { createGeminiProvider } from './gemini.js';
 export { createGlmProvider, createOllamaProvider, createCustomProvider } from './openai-compat.js';
-export { createCliProvider } from './cli-provider.js';

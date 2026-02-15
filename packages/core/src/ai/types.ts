@@ -2,10 +2,12 @@
 // Core types for AI provider abstraction
 
 export interface AiProviderConfig {
-  provider: 'openai' | 'claude' | 'gemini' | 'glm' | 'ollama' | 'custom' | 'codex-cli' | 'gemini-cli';
+  provider: 'openai' | 'claude' | 'gemini' | 'glm' | 'ollama' | 'custom';
   model: string;
   apiKey?: string;
   baseUrl?: string;
+  /** Authentication method: api-key (default), env, mcp (MCP server), custom endpoint */
+  auth?: 'api-key' | 'env' | 'mcp' | 'custom';
   temperature?: number;
   maxTokens?: number;
   /** Request timeout in milliseconds (default: 60000 for HTTP, 120000 for CLI) */

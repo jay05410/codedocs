@@ -62,9 +62,10 @@ export default {
 
   // AI 프로바이더 설정
   ai: {
-    provider: 'openai',        // openai | claude | gemini | glm | ollama | custom | codex-cli | gemini-cli
+    provider: 'openai',        // openai | claude | gemini | glm | ollama | custom
     model: 'gpt-5.2',
     apiKey: process.env.OPENAI_API_KEY,
+    // auth: 'mcp',            // 선택: MCP 서버를 통한 요청 (API 키 불필요)
     timeout: 60000,            // 선택: 요청 타임아웃(ms)
     maxRetries: 1,             // 선택: 일시적 오류 재시도 횟수
     features: {
@@ -167,22 +168,20 @@ export default defineConfig({
 - `package.json`, `build.gradle`, `pom.xml`, `go.mod`, `requirements.txt` 등을 스캔
 - 감지된 프레임워크에 맞는 파서를 자동 추천
 
-### CLI 기반 프로바이더 (API 키 불필요)
+### MCP 인증 (API 키 불필요)
 
-Codex CLI 또는 Gemini CLI를 AI 백엔드로 사용할 수 있습니다. OAuth 인증을 자체적으로 처리하므로 API 키가 필요 없습니다:
+MCP 서버를 통해 AI 요청을 라우팅합니다. API 키 없이 사용 가능합니다:
 
 ```typescript
 ai: {
-  provider: 'codex-cli',    // 또는 'gemini-cli'
-  model: 'gpt-4.1',
+  provider: 'openai',       // 모든 프로바이더 지원
+  model: 'gpt-5.2',
+  auth: 'mcp',
+  baseUrl: process.env.MCP_SERVER_URL,
 }
 ```
 
-CLI 도구 설치 및 인증이 필요합니다:
-```bash
-npm install -g @openai/codex   # 이후: codex auth login
-npm install -g @google/gemini-cli  # 이후: gemini auth login
-```
+AI 채팅 기능을 제공하는 MCP 서버가 필요합니다. 설정 방법은 [Model Context Protocol](https://modelcontextprotocol.io)을 참조하세요.
 
 ### Tree-sitter AST 파싱
 

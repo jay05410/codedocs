@@ -13,10 +13,11 @@ const parserPluginSchema = z.object({
  * Zod schema for AI configuration
  */
 const aiConfigSchema = z.object({
-  provider: z.enum(['openai', 'claude', 'gemini', 'glm', 'ollama', 'custom', 'codex-cli', 'gemini-cli']),
+  provider: z.enum(['openai', 'claude', 'gemini', 'glm', 'ollama', 'custom']),
   model: z.string(),
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
+  auth: z.enum(['api-key', 'env', 'mcp', 'custom']).optional(),
   timeout: z.number().optional(),
   maxRetries: z.number().optional(),
   features: z.object({

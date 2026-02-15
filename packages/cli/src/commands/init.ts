@@ -72,7 +72,9 @@ interface InitAnswers {
   parsers: string[];
   aiProvider: 'openai' | 'claude' | 'gemini' | 'glm' | 'ollama' | 'none';
   aiModel?: string;
+  authMethod?: 'api-key' | 'env' | 'mcp' | 'custom-endpoint';
   apiKey?: string;
+  baseUrl?: string;
   locale: 'ko' | 'en' | 'ja' | 'zh';
   deployTarget: 'github-pages' | 'gitlab-pages' | 'nginx' | 'jenkins' | 'local';
   generateCI: boolean;
@@ -274,18 +276,73 @@ async function runWizard(detected: DetectedStack, targetDir: string): Promise<In
       },
     },
 
-    // Step 6: API key
+    // Step 6: Auth method
+    {
+      key: 'authMethod',
+      skip: () => answers.aiProvider === 'none' || answers.aiProvider === 'ollama',
+      prompt: async () => {
+        const envVar = getEnvVarName(answers.aiProvider);
+
+        const choices: any[] = [
+          { name: `Environment variable (${chalk.dim(envVar)})`, value: 'env' },
+          { name: 'API key (enter now)', value: 'api-key' },
+          { name: `MCP server (${chalk.dim('Model Context Protocol')})`, value: 'mcp' },
+          { name: `Custom endpoint / proxy (${chalk.dim('enter baseUrl')})`, value: 'custom-endpoint' },
+          backSep, backChoice,
+        ];
+
+        const { value } = await prompt([{
+          type: 'list',
+          name: 'value',
+          message: 'How do you want to authenticate?',
+          choices,
+          default: answers.authMethod || 'env',
+        }]);
+
+        // Show MCP setup guide when selected
+        if (value === 'mcp') {
+          console.log(chalk.cyan('\n  MCP - Model Context Protocol'));
+          console.log(chalk.dim('  Routes AI requests through a configured MCP server.'));
+          console.log(chalk.dim('  Setup:'));
+          console.log(chalk.dim('    1. Configure an MCP server that provides AI chat'));
+          console.log(chalk.dim('    2. Set MCP_SERVER_URL environment variable'));
+          console.log(chalk.dim('  See: https://modelcontextprotocol.io\n'));
+        }
+
+        return value;
+      },
+    },
+
+    // Step 6b: API key input (only if api-key selected)
     {
       key: 'apiKey',
-      skip: () => answers.aiProvider === 'none' || answers.aiProvider === 'ollama',
+      skip: () => answers.authMethod !== 'api-key',
       prompt: async () => {
         const { value } = await prompt([{
           type: 'password',
           name: 'value',
-          message: `${s.apiKeyPrompt} ${chalk.dim('(leave empty to use environment variable)')}`,
+          message: s.apiKeyPrompt,
           mask: '*',
         }]);
-        return value || '';
+        if (!value) return BACK_VALUE;
+        return value;
+      },
+    },
+
+    // Step 6c: Custom endpoint URL (only if custom-endpoint selected)
+    {
+      key: 'baseUrl',
+      skip: () => answers.authMethod !== 'custom-endpoint',
+      prompt: async () => {
+        const { value } = await prompt([{
+          type: 'input',
+          name: 'value',
+          message: 'Proxy / custom endpoint URL:',
+          default: answers.baseUrl || 'https://api.openrouter.ai/api',
+          validate: (input: string) => input.startsWith('http') || 'URL must start with http:// or https://',
+        }]);
+        if (!value) return BACK_VALUE;
+        return value;
       },
     },
 
@@ -465,10 +522,17 @@ export const initCommand = new Command('init')
 
       console.log(chalk.cyan(`\n${strings.nextSteps}`));
       console.log(chalk.dim('  1. Review and edit codedocs.config.ts'));
-      if (answers.aiProvider !== 'none' && !answers.apiKey) {
-        console.log(
-          chalk.dim(`  2. ${t(strings.setEnvVar, { envVar: getEnvVarName(answers.aiProvider) })}`)
-        );
+      if (answers.aiProvider !== 'none' && answers.authMethod !== 'api-key') {
+        const envVar = getEnvVarName(answers.aiProvider);
+        if (answers.authMethod === 'mcp') {
+          console.log(chalk.dim('  2. Set MCP_SERVER_URL to your MCP server endpoint'));
+        } else if (answers.authMethod === 'custom-endpoint') {
+          console.log(chalk.dim(`  2. Set ${envVar} if your proxy requires auth`));
+        } else {
+          console.log(
+            chalk.dim(`  2. ${t(strings.setEnvVar, { envVar })}`)
+          );
+        }
       }
       console.log(chalk.dim('  3. Run: codedocs analyze'));
       console.log(chalk.dim('  4. Run: codedocs generate'));
@@ -530,11 +594,25 @@ function generateConfigFile(answers: InitAnswers): string {
   let aiConfig = '';
   if (answers.aiProvider !== 'none') {
     const envVar = getEnvVarName(answers.aiProvider);
-    const keyLine = answers.aiProvider === 'ollama'
-      ? `    baseUrl: process.env.${envVar} || 'http://localhost:11434',`
-      : `    apiKey: process.env.${envVar},`;
+    let connLines: string;
 
-    aiConfig = `\n  // AI configuration\n  ai: {\n    provider: '${answers.aiProvider}',\n    model: '${answers.aiModel}',\n${keyLine}\n    features: {\n      domainGrouping: true,\n      flowDiagrams: true,\n      codeExplanation: true,\n    },\n  },\n`;
+    if (answers.aiProvider === 'ollama') {
+      connLines = `    baseUrl: process.env.${envVar} || 'http://localhost:11434',`;
+    } else if (answers.authMethod === 'mcp') {
+      connLines = `    auth: 'mcp', // routes through MCP server\n    baseUrl: process.env.MCP_SERVER_URL,`;
+    } else if (answers.authMethod === 'custom-endpoint') {
+      const baseUrl = answers.baseUrl || 'https://api.openrouter.ai/api';
+      connLines = `    provider: 'custom',\n    baseUrl: '${baseUrl}',\n    apiKey: process.env.${envVar}, // optional depending on proxy`;
+    } else if (answers.authMethod === 'api-key' && answers.apiKey) {
+      connLines = `    apiKey: '${answers.apiKey}',`;
+    } else {
+      connLines = `    apiKey: process.env.${envVar},`;
+    }
+
+    const providerLine = answers.authMethod === 'custom-endpoint'
+      ? '' : `    provider: '${answers.aiProvider}',\n`;
+
+    aiConfig = `\n  // AI configuration\n  ai: {\n${providerLine}    model: '${answers.aiModel}',\n${connLines}\n    features: {\n      domainGrouping: true,\n      flowDiagrams: true,\n      codeExplanation: true,\n    },\n  },\n`;
   }
 
   const basePath = answers.deployTarget === 'github-pages'

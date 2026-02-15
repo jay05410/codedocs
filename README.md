@@ -62,9 +62,10 @@ export default {
 
   // AI provider for enhanced documentation
   ai: {
-    provider: 'openai',        // openai | claude | gemini | glm | ollama | custom | codex-cli | gemini-cli
+    provider: 'openai',        // openai | claude | gemini | glm | ollama | custom
     model: 'gpt-5.2',
     apiKey: process.env.OPENAI_API_KEY,
+    // auth: 'mcp',            // optional: route through MCP server (no API key)
     timeout: 60000,            // optional: request timeout in ms
     maxRetries: 1,             // optional: retry count for transient errors
     features: {
@@ -166,22 +167,20 @@ export default defineConfig({
 - `package.json`, `build.gradle`, `pom.xml`, `go.mod`, `requirements.txt`
 - Suggests appropriate parsers based on detected frameworks
 
-### CLI-Based Providers (No API Key)
+### MCP Authentication (No API Key)
 
-Use Codex CLI or Gemini CLI as AI backends — they handle OAuth authentication natively, no API key required:
+Route AI requests through a configured MCP server — no API key required:
 
 ```typescript
 ai: {
-  provider: 'codex-cli',    // or 'gemini-cli'
-  model: 'gpt-4.1',
+  provider: 'openai',       // any provider
+  model: 'gpt-5.2',
+  auth: 'mcp',
+  baseUrl: process.env.MCP_SERVER_URL,
 }
 ```
 
-Requires the CLI tool to be installed and authenticated:
-```bash
-npm install -g @openai/codex   # then: codex auth login
-npm install -g @google/gemini-cli  # then: gemini auth login
-```
+Requires an MCP server that provides AI chat capabilities. See [Model Context Protocol](https://modelcontextprotocol.io) for setup.
 
 ### Tree-sitter AST Parsing
 
