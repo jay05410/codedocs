@@ -194,6 +194,15 @@ npm install web-tree-sitter tree-sitter-typescript  # add grammars as needed
 
 Falls back to regex parsers when tree-sitter is not installed.
 
+### Optional HTML Sanitizer Hardening
+
+CodeDocs uses a conservative built-in HTML sanitization fallback by default.  
+If you want stricter allowlist-based sanitization for rendered markdown HTML, install:
+
+```bash
+npm install sanitize-html
+```
+
 ### AI-Enhanced Documentation
 
 - Domain grouping of related endpoints

@@ -195,6 +195,15 @@ npm install web-tree-sitter tree-sitter-typescript  # 필요한 문법 추가
 
 Tree-sitter가 설치되지 않은 경우 기존 정규식 파서로 자동 폴백됩니다.
 
+### 선택적 HTML Sanitizer 강화
+
+기본적으로는 보수적인 내장 HTML sanitize 폴백을 사용합니다.  
+마크다운 렌더링 결과에 대해 allowlist 기반의 더 엄격한 sanitize를 원하면 아래 의존성을 설치하세요:
+
+```bash
+npm install sanitize-html
+```
+
 ### AI 강화 문서
 
 `generate` 단계에서 AI를 활용하여 문서 품질을 높입니다:
