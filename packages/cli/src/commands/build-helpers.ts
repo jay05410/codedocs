@@ -12,6 +12,7 @@ function getSanitizeHtml(): SanitizeFn | null {
     sanitizeHtmlFn = (loaded.default || loaded) as SanitizeFn;
   } catch {
     sanitizeHtmlFn = null;
+    console.warn('[codedocs] sanitize-html not installed — using built-in fallback. For local/internal use this is fine. For public-facing docs, install it: npm i sanitize-html');
   }
   return sanitizeHtmlFn;
 }
