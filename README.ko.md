@@ -170,18 +170,37 @@ export default defineConfig({
 
 ### MCP 인증 (API 키 불필요)
 
-MCP 서버를 통해 AI 요청을 라우팅합니다. API 키 없이 사용 가능합니다:
+설치된 CLI 도구(Codex, Gemini CLI)를 통해 OAuth 인증으로 AI 요청을 위임합니다. API 키가 필요 없습니다:
 
 ```typescript
+// OpenAI - Codex CLI 사용
 ai: {
-  provider: 'openai',       // 모든 프로바이더 지원
+  provider: 'openai',
   model: 'gpt-5.2',
   auth: 'mcp',
-  baseUrl: process.env.MCP_SERVER_URL,
+  mcp: {
+    command: 'codex',
+    args: ['--quiet', '--full-auto', '-'],
+  },
+}
+
+// Google - Gemini CLI 사용
+ai: {
+  provider: 'gemini',
+  model: 'gemini-3-pro',
+  auth: 'mcp',
+  mcp: {
+    command: 'gemini',
+    args: ['-'],
+  },
 }
 ```
 
-AI 채팅 기능을 제공하는 MCP 서버가 필요합니다. 설정 방법은 [Model Context Protocol](https://modelcontextprotocol.io)을 참조하세요.
+CLI 도구를 먼저 설치하고 인증하세요:
+```bash
+npm install -g @openai/codex       # 이후: codex auth login
+npm install -g @google/gemini-cli  # 이후: gemini auth login
+```
 
 ### Tree-sitter AST 파싱
 

@@ -169,18 +169,37 @@ export default defineConfig({
 
 ### MCP Authentication (No API Key)
 
-Route AI requests through a configured MCP server — no API key required:
+Delegate AI requests to installed CLI tools (Codex, Gemini CLI) via OAuth — no API key required:
 
 ```typescript
+// OpenAI via Codex CLI
 ai: {
-  provider: 'openai',       // any provider
+  provider: 'openai',
   model: 'gpt-5.2',
   auth: 'mcp',
-  baseUrl: process.env.MCP_SERVER_URL,
+  mcp: {
+    command: 'codex',
+    args: ['--quiet', '--full-auto', '-'],
+  },
+}
+
+// Google via Gemini CLI
+ai: {
+  provider: 'gemini',
+  model: 'gemini-3-pro',
+  auth: 'mcp',
+  mcp: {
+    command: 'gemini',
+    args: ['-'],
+  },
 }
 ```
 
-Requires an MCP server that provides AI chat capabilities. See [Model Context Protocol](https://modelcontextprotocol.io) for setup.
+Install and authenticate the CLI tool first:
+```bash
+npm install -g @openai/codex    # then: codex auth login
+npm install -g @google/gemini-cli  # then: gemini auth login
+```
 
 ### Tree-sitter AST Parsing
 
