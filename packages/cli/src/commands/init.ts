@@ -75,6 +75,9 @@ interface InitAnswers {
   authMethod?: 'api-key' | 'env' | 'mcp' | 'custom-endpoint';
   apiKey?: string;
   baseUrl?: string;
+  mcpCommand?: string;
+  mcpArgs?: string;
+  mcpTool?: string;
   locale: 'ko' | 'en' | 'ja' | 'zh';
   deployTarget: 'github-pages' | 'gitlab-pages' | 'nginx' | 'jenkins' | 'local';
   generateCI: boolean;
@@ -299,17 +302,6 @@ async function runWizard(detected: DetectedStack, targetDir: string): Promise<In
           default: answers.authMethod || 'env',
         }]);
 
-        // Show MCP setup guide when selected
-        if (value === 'mcp') {
-          console.log(chalk.cyan('\n  MCP - Model Context Protocol'));
-          console.log(chalk.dim('  Routes AI requests through an MCP server (no API key needed).'));
-          console.log(chalk.dim('  Setup:'));
-          console.log(chalk.dim('    1. Install an MCP server with AI chat tool'));
-          console.log(chalk.dim('    2. Set ai.mcp.command and ai.mcp.args in config'));
-          console.log(chalk.dim('    3. Chat tool is auto-detected, or set ai.mcp.tool'));
-          console.log(chalk.dim('  See: https://modelcontextprotocol.io\n'));
-        }
-
         return value;
       },
     },
@@ -341,6 +333,39 @@ async function runWizard(detected: DetectedStack, targetDir: string): Promise<In
           message: 'Proxy / custom endpoint URL:',
           default: answers.baseUrl || 'https://api.openrouter.ai/api',
           validate: (input: string) => input.startsWith('http') || 'URL must start with http:// or https://',
+        }]);
+        if (!value) return BACK_VALUE;
+        return value;
+      },
+    },
+
+    // Step 6d: MCP server command (only if mcp selected)
+    {
+      key: 'mcpCommand',
+      skip: () => answers.authMethod !== 'mcp',
+      prompt: async () => {
+        const { value } = await prompt([{
+          type: 'input',
+          name: 'value',
+          message: 'MCP server command:',
+          default: answers.mcpCommand || 'npx',
+        }]);
+        if (!value) return BACK_VALUE;
+        return value;
+      },
+    },
+
+    // Step 6e: MCP server args (only if mcp selected)
+    {
+      key: 'mcpArgs',
+      skip: () => answers.authMethod !== 'mcp',
+      prompt: async () => {
+        const { value } = await prompt([{
+          type: 'input',
+          name: 'value',
+          message: 'MCP server package / arguments:',
+          default: answers.mcpArgs || '-y @anthropic/mcp-server',
+          validate: (input: string) => input.length > 0 || 'Arguments are required',
         }]);
         if (!value) return BACK_VALUE;
         return value;
@@ -600,7 +625,12 @@ function generateConfigFile(answers: InitAnswers): string {
     if (answers.aiProvider === 'ollama') {
       connLines = `    baseUrl: process.env.${envVar} || 'http://localhost:11434',`;
     } else if (answers.authMethod === 'mcp') {
-      connLines = `    auth: 'mcp',\n    mcp: {\n      command: 'npx',\n      args: ['-y', '@your/mcp-ai-server'],\n      // tool: 'chat', // auto-detected if omitted\n    },`;
+      const cmd = answers.mcpCommand || 'npx';
+      const argsStr = (answers.mcpArgs || '-y @anthropic/mcp-server')
+        .split(/\s+/)
+        .map(a => `'${a}'`)
+        .join(', ');
+      connLines = `    auth: 'mcp',\n    mcp: {\n      command: '${cmd}',\n      args: [${argsStr}],\n    },`;
     } else if (answers.authMethod === 'custom-endpoint') {
       const baseUrl = answers.baseUrl || 'https://api.openrouter.ai/api';
       connLines = `    provider: 'custom',\n    baseUrl: '${baseUrl}',\n    apiKey: process.env.${envVar}, // optional depending on proxy`;
