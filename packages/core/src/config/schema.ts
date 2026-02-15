@@ -18,6 +18,11 @@ const aiConfigSchema = z.object({
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
   auth: z.enum(['api-key', 'env', 'mcp', 'custom']).optional(),
+  mcp: z.object({
+    command: z.string(),
+    args: z.array(z.string()).optional(),
+    tool: z.string().optional(),
+  }).optional(),
   timeout: z.number().optional(),
   maxRetries: z.number().optional(),
   features: z.object({

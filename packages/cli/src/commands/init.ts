@@ -302,10 +302,11 @@ async function runWizard(detected: DetectedStack, targetDir: string): Promise<In
         // Show MCP setup guide when selected
         if (value === 'mcp') {
           console.log(chalk.cyan('\n  MCP - Model Context Protocol'));
-          console.log(chalk.dim('  Routes AI requests through a configured MCP server.'));
+          console.log(chalk.dim('  Routes AI requests through an MCP server (no API key needed).'));
           console.log(chalk.dim('  Setup:'));
-          console.log(chalk.dim('    1. Configure an MCP server that provides AI chat'));
-          console.log(chalk.dim('    2. Set MCP_SERVER_URL environment variable'));
+          console.log(chalk.dim('    1. Install an MCP server with AI chat tool'));
+          console.log(chalk.dim('    2. Set ai.mcp.command and ai.mcp.args in config'));
+          console.log(chalk.dim('    3. Chat tool is auto-detected, or set ai.mcp.tool'));
           console.log(chalk.dim('  See: https://modelcontextprotocol.io\n'));
         }
 
@@ -599,7 +600,7 @@ function generateConfigFile(answers: InitAnswers): string {
     if (answers.aiProvider === 'ollama') {
       connLines = `    baseUrl: process.env.${envVar} || 'http://localhost:11434',`;
     } else if (answers.authMethod === 'mcp') {
-      connLines = `    auth: 'mcp', // routes through MCP server\n    baseUrl: process.env.MCP_SERVER_URL,`;
+      connLines = `    auth: 'mcp',\n    mcp: {\n      command: 'npx',\n      args: ['-y', '@your/mcp-ai-server'],\n      // tool: 'chat', // auto-detected if omitted\n    },`;
     } else if (answers.authMethod === 'custom-endpoint') {
       const baseUrl = answers.baseUrl || 'https://api.openrouter.ai/api';
       connLines = `    provider: 'custom',\n    baseUrl: '${baseUrl}',\n    apiKey: process.env.${envVar}, // optional depending on proxy`;

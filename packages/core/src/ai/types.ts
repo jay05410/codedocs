@@ -8,6 +8,15 @@ export interface AiProviderConfig {
   baseUrl?: string;
   /** Authentication method: api-key (default), env, mcp (MCP server), custom endpoint */
   auth?: 'api-key' | 'env' | 'mcp' | 'custom';
+  /** MCP server configuration (required when auth is 'mcp') */
+  mcp?: {
+    /** Command to spawn MCP server (stdio transport) */
+    command: string;
+    /** Command arguments */
+    args?: string[];
+    /** Tool name to call for chat (auto-detected if omitted) */
+    tool?: string;
+  };
   temperature?: number;
   maxTokens?: number;
   /** Request timeout in milliseconds (default: 60000 for HTTP, 120000 for CLI) */
