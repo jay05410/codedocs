@@ -1,4 +1,20 @@
 import { escapeHtml } from '@codedocs/core';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+type SanitizeFn = (html: string, options: Record<string, unknown>) => string;
+let sanitizeHtmlFn: SanitizeFn | null | undefined;
+
+function getSanitizeHtml(): SanitizeFn | null {
+  if (sanitizeHtmlFn !== undefined) return sanitizeHtmlFn;
+  try {
+    const loaded = require('sanitize-html');
+    sanitizeHtmlFn = (loaded.default || loaded) as SanitizeFn;
+  } catch {
+    sanitizeHtmlFn = null;
+  }
+  return sanitizeHtmlFn;
+}
 
 export function getRelativePrefix(slug: string): string {
   const depth = (slug.match(/\//g) || []).length;
@@ -396,14 +412,38 @@ export function decorateMermaidBlocks(html: string): string {
 }
 
 export function sanitizeHtmlContent(html: string): string {
+  const sanitizeHtml = getSanitizeHtml();
+  try {
+    if (sanitizeHtml) {
+      return sanitizeHtml(html, {
+        allowedTags: [
+          'p', 'a', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre',
+          'strong', 'em', 'del', 'hr', 'br',
+          'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+          'table', 'thead', 'tbody', 'tr', 'th', 'td',
+          'div', 'span', 'img',
+          'button', 'svg', 'path', 'rect', 'line', 'polyline', 'circle', 'ellipse',
+        ],
+        allowedAttributes: {
+          a: ['href', 'name', 'target', 'rel'],
+          img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
+          '*': ['id', 'class', 'title', 'aria-label', 'data-source', 'style'],
+        },
+        allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+        allowedSchemesAppliedToAttributes: ['href', 'src'],
+        allowProtocolRelative: false,
+      });
+    }
+  } catch {
+  }
+  // Conservative fallback when external sanitizer is unavailable or fails
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<(iframe|object|embed|applet|meta|base|form|input|button|textarea|select|link)\b[\s\S]*?>[\s\S]*?<\/\1>/gi, '')
     .replace(/<(iframe|object|embed|applet|meta|base|form|input|button|textarea|select|link)\b[^>]*\/?>/gi, '')
     .replace(/\s(on\w+)\s*=\s*(['"]).*?\2/gi, '')
     .replace(/\s(on\w+)\s*=\s*[^\s>]+/gi, '')
-    .replace(/\s(href|src|xlink:href)\s*=\s*(['"])\s*(javascript:|vbscript:|data:(?!image\/))/gi, ' $1=$2#')
-    .replace(/<a([^>]*?)target=(['"])_blank\2(?![^>]*rel=)([^>]*)>/gi, '<a$1target="_blank" rel="noopener noreferrer"$3>');
+    .replace(/\s(href|src|xlink:href)\s*=\s*(['"])\s*(javascript:|vbscript:|data:(?!image\/))/gi, ' $1=$2#');
 }
 
 export function rewriteInternalLinks(html: string, knownSlugs: Set<string>): string {
@@ -427,4 +467,3 @@ export function rewriteInternalLinks(html: string, knownSlugs: Set<string>): str
   });
   return result;
 }
-
