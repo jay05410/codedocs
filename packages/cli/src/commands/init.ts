@@ -360,11 +360,18 @@ async function runWizard(detected: DetectedStack, targetDir: string): Promise<In
       key: 'mcpArgs',
       skip: () => answers.authMethod !== 'mcp',
       prompt: async () => {
+        const mcpDefaults: Record<string, string> = {
+          openai: '-y @openai/mcp-server',
+          claude: '-y @anthropic/mcp-server',
+          gemini: '-y @google/mcp-server',
+        };
+        const defaultArgs = answers.mcpArgs || mcpDefaults[answers.aiProvider] || '-y @your/mcp-ai-server';
+
         const { value } = await prompt([{
           type: 'input',
           name: 'value',
           message: 'MCP server package / arguments:',
-          default: answers.mcpArgs || '-y @anthropic/mcp-server',
+          default: defaultArgs,
           validate: (input: string) => input.length > 0 || 'Arguments are required',
         }]);
         if (!value) return BACK_VALUE;
@@ -626,7 +633,7 @@ function generateConfigFile(answers: InitAnswers): string {
       connLines = `    baseUrl: process.env.${envVar} || 'http://localhost:11434',`;
     } else if (answers.authMethod === 'mcp') {
       const cmd = answers.mcpCommand || 'npx';
-      const argsStr = (answers.mcpArgs || '-y @anthropic/mcp-server')
+      const argsStr = (answers.mcpArgs || '-y @your/mcp-ai-server')
         .split(/\s+/)
         .map(a => `'${a}'`)
         .join(', ');
