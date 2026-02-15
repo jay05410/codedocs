@@ -339,40 +339,48 @@ async function runWizard(detected: DetectedStack, targetDir: string): Promise<In
       },
     },
 
-    // Step 6d: MCP server command (only if mcp selected)
+    // Step 6d: MCP command (only if mcp selected)
     {
       key: 'mcpCommand',
       skip: () => answers.authMethod !== 'mcp',
       prompt: async () => {
+        const cmdDefaults: Record<string, string> = {
+          openai: 'codex',
+          gemini: 'gemini',
+        };
+        const defaultCmd = answers.mcpCommand || cmdDefaults[answers.aiProvider] || '';
+
         const { value } = await prompt([{
           type: 'input',
           name: 'value',
-          message: 'MCP server command:',
-          default: answers.mcpCommand || 'npx',
+          message: 'CLI tool command:',
+          default: defaultCmd,
+          validate: (input: string) => input.length > 0 || 'Command is required',
         }]);
         if (!value) return BACK_VALUE;
         return value;
       },
     },
 
-    // Step 6e: MCP server args (only if mcp selected)
+    // Step 6e: MCP args (only if mcp selected)
     {
       key: 'mcpArgs',
       skip: () => answers.authMethod !== 'mcp',
       prompt: async () => {
-        const mcpDefaults: Record<string, string> = {
-          openai: '-y @openai/mcp-server',
-          claude: '-y @anthropic/mcp-server',
-          gemini: '-y @google/mcp-server',
+        const argsDefaults: Record<string, string> = {
+          codex: '--quiet --full-auto -',
+          gemini: '-',
         };
-        const defaultArgs = answers.mcpArgs || mcpDefaults[answers.aiProvider] || '-y @your/mcp-ai-server';
+        const defaultArgs = answers.mcpArgs || argsDefaults[answers.mcpCommand] || '-';
+
+        console.log(chalk.dim(`\n  Install: npm install -g @${answers.mcpCommand === 'codex' ? 'openai/codex' : answers.mcpCommand === 'gemini' ? 'google/gemini-cli' : answers.mcpCommand}`));
+        console.log(chalk.dim(`  Auth:    ${answers.mcpCommand} auth login\n`));
 
         const { value } = await prompt([{
           type: 'input',
           name: 'value',
-          message: 'MCP server package / arguments:',
+          message: 'CLI tool arguments:',
           default: defaultArgs,
-          validate: (input: string) => input.length > 0 || 'Arguments are required',
         }]);
         if (!value) return BACK_VALUE;
         return value;
@@ -558,7 +566,8 @@ export const initCommand = new Command('init')
       if (answers.aiProvider !== 'none' && answers.authMethod !== 'api-key') {
         const envVar = getEnvVarName(answers.aiProvider);
         if (answers.authMethod === 'mcp') {
-          console.log(chalk.dim('  2. Set MCP_SERVER_URL to your MCP server endpoint'));
+          const cmd = answers.mcpCommand || 'codex';
+          console.log(chalk.dim(`  2. Ensure ${cmd} is installed and authenticated (${cmd} auth login)`));
         } else if (answers.authMethod === 'custom-endpoint') {
           console.log(chalk.dim(`  2. Set ${envVar} if your proxy requires auth`));
         } else {
@@ -632,8 +641,8 @@ function generateConfigFile(answers: InitAnswers): string {
     if (answers.aiProvider === 'ollama') {
       connLines = `    baseUrl: process.env.${envVar} || 'http://localhost:11434',`;
     } else if (answers.authMethod === 'mcp') {
-      const cmd = answers.mcpCommand || 'npx';
-      const argsStr = (answers.mcpArgs || '-y @your/mcp-ai-server')
+      const cmd = answers.mcpCommand || 'codex';
+      const argsStr = (answers.mcpArgs || '-')
         .split(/\s+/)
         .map(a => `'${a}'`)
         .join(', ');

@@ -21,7 +21,6 @@ const aiConfigSchema = z.object({
   mcp: z.object({
     command: z.string(),
     args: z.array(z.string()).optional(),
-    tool: z.string().optional(),
   }).optional(),
   timeout: z.number().optional(),
   maxRetries: z.number().optional(),

@@ -1,89 +1,109 @@
 // packages/core/src/ai/providers/mcp-provider.ts
-// MCP-based AI provider that routes chat requests through an MCP server's tool
+// MCP provider that delegates to installed CLI tools (codex, gemini, etc.)
+// Spawns the tool as a subprocess and communicates via stdin/stdout.
 
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { spawn } from 'node:child_process';
 import type { AiProvider, AiProviderConfig, ChatMessage, ChatOptions } from '../types.js';
 import { extractJson } from '../types.js';
 import { logger } from '../../logger.js';
 
-/** Tool name patterns to auto-detect a chat-capable tool */
-const CHAT_TOOL_PATTERNS = [
-  /chat/i,
-  /complet/i,
-  /generate/i,
-  /ask/i,
-  /prompt/i,
-  /message/i,
-];
+const DEFAULT_TIMEOUT = 120000; // 2 minutes
+const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
 
 /**
- * Create an MCP-based AI provider.
- * Connects to an MCP server via stdio, finds a chat tool, and routes requests through it.
+ * Spawn a CLI tool, pipe prompt via stdin, and return stdout.
+ */
+function execTool(
+  command: string,
+  args: string[],
+  timeout: number,
+  stdinData?: string,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(command, args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout,
+      env: { ...process.env, NO_COLOR: '1' },
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let bufferExceeded = false;
+
+    proc.stdout.on('data', (data: Buffer) => {
+      if (bufferExceeded) return;
+      stdout += data.toString();
+      if (stdout.length > MAX_BUFFER_SIZE) {
+        bufferExceeded = true;
+        proc.kill();
+        reject(new Error(`stdout exceeded ${MAX_BUFFER_SIZE} bytes`));
+      }
+    });
+
+    proc.stderr.on('data', (data: Buffer) => {
+      if (bufferExceeded) return;
+      if (stderr.length < MAX_BUFFER_SIZE) {
+        stderr += data.toString();
+      }
+    });
+
+    proc.on('close', (code) => {
+      if (bufferExceeded) return;
+      if (code === 0) {
+        resolve(stdout.trim());
+      } else {
+        reject(new Error(`${command} exited with code ${code}: ${stderr.substring(0, 500)}`));
+      }
+    });
+
+    proc.on('error', (err) => {
+      if (bufferExceeded) return;
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        reject(new Error(`Command "${command}" not found. Install it first.`));
+      } else {
+        reject(err);
+      }
+    });
+
+    if (stdinData) {
+      proc.stdin.write(stdinData);
+      proc.stdin.end();
+    } else {
+      proc.stdin.end();
+    }
+  });
+}
+
+/**
+ * Check if a CLI tool is available.
+ */
+async function checkAvailable(command: string): Promise<boolean> {
+  try {
+    await execTool(command, ['--version'], 10000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create an MCP provider that delegates to a CLI tool.
+ * Uses the command and args specified in config.mcp.
  */
 export function createMcpProvider(config: AiProviderConfig): AiProvider {
   if (!config.mcp) {
     throw new Error(
       'MCP config is required when auth is "mcp". ' +
-      'Set ai.mcp.command in codedocs.config.ts (e.g. { command: "npx", args: ["-y", "@some/mcp-server"] })',
+      'Set ai.mcp in codedocs.config.ts (e.g. { command: "codex", args: ["--quiet", "--full-auto", "-"] })',
     );
   }
 
-  const mcpConfig = config.mcp; // narrowed to non-nullable
+  const mcpConfig = config.mcp;
   const providerLogger = logger.child('MCP');
+  const timeout = config.timeout ?? DEFAULT_TIMEOUT;
 
-  // Lazy-initialized client and tool name
-  let client: Client | null = null;
-  let resolvedTool: string | null = null;
-
-  async function ensureConnected(): Promise<{ client: Client; tool: string }> {
-    if (client && resolvedTool) {
-      return { client, tool: resolvedTool };
-    }
-
-    providerLogger.debug(`Connecting to MCP server: ${mcpConfig.command} ${(mcpConfig.args || []).join(' ')}`);
-
-    const transport = new StdioClientTransport({
-      command: mcpConfig.command,
-      args: mcpConfig.args,
-      stderr: 'pipe',
-    });
-
-    client = new Client({ name: 'codedocs', version: '0.1.0' });
-    await client.connect(transport);
-
-    // Resolve tool name
-    if (mcpConfig.tool) {
-      resolvedTool = mcpConfig.tool;
-    } else {
-      // Auto-detect a chat-capable tool
-      const { tools } = await client.listTools();
-      providerLogger.debug(`Available tools: ${tools.map(t => t.name).join(', ')}`);
-
-      for (const pattern of CHAT_TOOL_PATTERNS) {
-        const match = tools.find(t => pattern.test(t.name));
-        if (match) {
-          resolvedTool = match.name;
-          break;
-        }
-      }
-
-      if (!resolvedTool && tools.length > 0) {
-        // Fallback to first tool
-        resolvedTool = tools[0].name;
-        providerLogger.warn(`No chat tool detected, using first available: ${resolvedTool}`);
-      }
-
-      if (!resolvedTool) {
-        throw new Error(
-          `MCP server has no tools. Ensure the server at "${mcpConfig.command}" exposes at least one tool.`,
-        );
-      }
-    }
-
-    providerLogger.debug(`Using MCP tool: ${resolvedTool}`);
-    return { client, tool: resolvedTool };
-  }
+  let availableChecked = false;
+  let isAvailable = false;
 
   return {
     name: `mcp/${config.provider}/${config.model || 'default'}`,
@@ -92,45 +112,50 @@ export function createMcpProvider(config: AiProviderConfig): AiProvider {
       messages: ChatMessage[],
       options: ChatOptions = {},
     ): Promise<string> {
-      const { client: c, tool } = await ensureConnected();
+      if (!availableChecked) {
+        isAvailable = await checkAvailable(mcpConfig.command);
+        availableChecked = true;
+      }
+      if (!isAvailable) {
+        throw new Error(
+          `"${mcpConfig.command}" is not installed.\n` +
+          `Install it first, then try again.`,
+        );
+      }
 
-      // Build tool arguments — common patterns for AI chat tools
-      const toolArgs: Record<string, unknown> = {
-        messages,
-        model: config.model,
-      };
-      if (options.temperature != null) toolArgs.temperature = options.temperature;
-      if (options.maxTokens != null) toolArgs.max_tokens = options.maxTokens;
+      // Combine messages into a single prompt
+      const prompt = messages
+        .map((msg) => {
+          if (msg.role === 'system') return `[System]: ${msg.content}`;
+          if (msg.role === 'user') return msg.content;
+          return `[Assistant]: ${msg.content}`;
+        })
+        .join('\n\n');
 
-      providerLogger.debug(`Calling tool "${tool}" with ${messages.length} messages`);
+      providerLogger.debug(`Executing: ${mcpConfig.command} ${(mcpConfig.args || []).slice(0, 2).join(' ')}...`);
 
-      const result = await c.callTool({ name: tool, arguments: toolArgs });
+      try {
+        const result = await execTool(mcpConfig.command, mcpConfig.args || [], timeout, prompt);
 
-      // Extract text from MCP tool result
-      const textParts: string[] = [];
-      if (Array.isArray(result.content)) {
-        for (const block of result.content) {
-          if (block.type === 'text' && typeof block.text === 'string') {
-            textParts.push(block.text);
+        if (!result) {
+          throw new Error(`${mcpConfig.command} returned empty response`);
+        }
+
+        if (options.jsonMode) {
+          try {
+            return extractJson(result);
+          } catch {
+            providerLogger.warn('jsonMode: failed to extract JSON from response');
+            return result;
           }
         }
-      }
 
-      const text = textParts.join('\n').trim();
-      if (!text) {
-        throw new Error(`MCP tool "${tool}" returned empty response`);
+        return result;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        providerLogger.error(`Execution failed: ${msg}`);
+        throw new Error(`MCP provider (${mcpConfig.command}) failed: ${msg}`);
       }
-
-      if (options.jsonMode) {
-        try {
-          return extractJson(text);
-        } catch {
-          providerLogger.warn('jsonMode: failed to extract JSON from MCP response');
-          return text;
-        }
-      }
-
-      return text;
     },
   };
 }

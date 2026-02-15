@@ -8,14 +8,12 @@ export interface AiProviderConfig {
   baseUrl?: string;
   /** Authentication method: api-key (default), env, mcp (MCP server), custom endpoint */
   auth?: 'api-key' | 'env' | 'mcp' | 'custom';
-  /** MCP server configuration (required when auth is 'mcp') */
+  /** MCP configuration: CLI tool to delegate AI requests (required when auth is 'mcp') */
   mcp?: {
-    /** Command to spawn MCP server (stdio transport) */
+    /** CLI command (e.g. 'codex', 'gemini') */
     command: string;
     /** Command arguments */
     args?: string[];
-    /** Tool name to call for chat (auto-detected if omitted) */
-    tool?: string;
   };
   temperature?: number;
   maxTokens?: number;
