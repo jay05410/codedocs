@@ -103,7 +103,7 @@ const buildConfigSchema = z.object({
  */
 export const configSchema = z.object({
   source: z.string(),
-  parsers: z.array(z.union([z.string(), parserPluginSchema])),
+  parsers: z.array(z.union([z.string(), parserPluginSchema])).default([]),
   ai: aiConfigSchema,
   docs: docsConfigSchema,
   theme: themeConfigSchema,

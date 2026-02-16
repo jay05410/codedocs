@@ -90,6 +90,67 @@ export async function resolveBuiltinParsers(
   return { parsers: resolved, errors };
 }
 
+/**
+ * File extension to parser name mapping for auto-detection.
+ * When config.parsers is empty, scan source files and pick matching parsers.
+ */
+const EXT_TO_PARSER: Record<string, string> = {
+  '.kt': 'kotlin-spring',
+  '.kts': 'kotlin-spring',
+  '.java': 'java-spring',
+  '.py': 'python-fastapi',
+  '.tsx': 'react',
+  '.jsx': 'react',
+  '.vue': 'vue',
+  '.svelte': 'svelte',
+  '.php': 'php',
+  '.go': 'go',
+  '.c': 'c',
+  '.h': 'c',
+  '.cpp': 'cpp',
+  '.cc': 'cpp',
+  '.cxx': 'cpp',
+  '.hpp': 'cpp',
+  '.graphql': 'graphql',
+  '.gql': 'graphql',
+};
+
+/**
+ * Auto-detect parser names from file extensions found in a source directory.
+ * Returns deduplicated list of parser names sorted by relevance (most files first).
+ */
+export async function detectParsersFromSource(sourceDir: string): Promise<string[]> {
+  const { readdir } = await import('fs/promises');
+  const { extname, resolve } = await import('path');
+
+  const IGNORE = new Set(['node_modules', 'build', 'dist', '.gradle', '.git']);
+  let files: string[];
+  try {
+    const entries = await readdir(resolve(sourceDir), { recursive: true });
+    files = entries.filter((f) => {
+      const parts = f.split(/[\\/]/);
+      return !parts.some((p) => IGNORE.has(p));
+    });
+  } catch {
+    return [];
+  }
+
+  // Count files per parser
+  const parserCounts = new Map<string, number>();
+  for (const file of files) {
+    const ext = extname(file).toLowerCase();
+    const parser = EXT_TO_PARSER[ext];
+    if (parser) {
+      parserCounts.set(parser, (parserCounts.get(parser) || 0) + 1);
+    }
+  }
+
+  // Sort by file count (most files first)
+  return [...parserCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([name]) => name);
+}
+
 /** Map package name to short parser name */
 export function packageToParserName(pkg: string): string | undefined {
   for (const [name, entry] of Object.entries(PARSER_ENTRIES)) {

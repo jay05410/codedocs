@@ -1,6 +1,8 @@
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { CodeDocsConfig } from './schema.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
@@ -46,23 +48,80 @@ export async function loadConfig(configPath = './codedocs.config.ts'): Promise<C
     return DEFAULT_CONFIG;
   }
 
-  try {
-    // Dynamic import of the config file
-    const configModule = await import(fileUrl);
-    const userConfig = configModule.default || configModule.config;
+  let userConfig: any;
 
-    if (!userConfig) {
-      throw new Error(
-        `Config file at ${configPath} must export a default config or named 'config' export`
-      );
+  // For .ts files, check if the project is CJS — native import() will fail
+  // and emit a noisy Node warning. Skip straight to fallback in that case.
+  const needsFallback = absolutePath.endsWith('.ts') && !isProjectEsm(absolutePath);
+
+  if (needsFallback) {
+    userConfig = await loadConfigFallback(absolutePath);
+  } else {
+    try {
+      const configModule = await import(fileUrl);
+      userConfig = configModule.default || configModule.config;
+    } catch {
+      userConfig = await loadConfigFallback(absolutePath);
     }
+  }
 
-    // Merge with defaults (preserve user parsers over empty default)
-    const mergedConfig = deepMerge(DEFAULT_CONFIG, userConfig);
+  if (!userConfig) {
+    throw new Error(
+      `Config file at ${configPath} must export a default config or named 'config' export`
+    );
+  }
 
-    return mergedConfig as CodeDocsConfig;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to load config from ${configPath}: ${msg}`);
+  // Merge with defaults (preserve user parsers over empty default)
+  const mergedConfig = deepMerge(DEFAULT_CONFIG, userConfig);
+
+  return mergedConfig as CodeDocsConfig;
+}
+
+/**
+ * Check if the nearest package.json has "type": "module".
+ */
+function isProjectEsm(filePath: string): boolean {
+  let dir = resolve(filePath, '..');
+  const root = resolve('/');
+  while (dir !== root) {
+    const pkgPath = join(dir, 'package.json');
+    if (existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+        return pkg.type === 'module';
+      } catch {
+        return false;
+      }
+    }
+    dir = resolve(dir, '..');
+  }
+  return false;
+}
+
+/**
+ * Fallback config loader for .ts files in CJS projects.
+ * Strips JSDoc/type annotations, writes a temp .mjs file, imports it.
+ */
+async function loadConfigFallback(absolutePath: string): Promise<any> {
+  const source = readFileSync(absolutePath, 'utf-8');
+
+  // Strip JSDoc block comments and TS type annotations that may appear
+  const cleaned = source
+    .replace(/\/\*\*[\s\S]*?\*\//g, '')        // JSDoc blocks
+    .replace(/:\s*import\([^)]*\)\.[^\s,;]*/g, '') // inline import() types
+    .replace(/as\s+const\s*/g, '');             // as const
+
+  // Write to a temp .mjs file so Node always treats it as ESM
+  const tmpDir = join(tmpdir(), 'codedocs-config');
+  mkdirSync(tmpDir, { recursive: true });
+  const tmpFile = join(tmpDir, `config-${Date.now()}.mjs`);
+
+  try {
+    writeFileSync(tmpFile, cleaned, 'utf-8');
+    const tmpUrl = pathToFileURL(tmpFile).href;
+    const mod = await import(tmpUrl);
+    return mod.default || mod.config;
+  } finally {
+    try { unlinkSync(tmpFile); } catch { /* ignore cleanup errors */ }
   }
 }

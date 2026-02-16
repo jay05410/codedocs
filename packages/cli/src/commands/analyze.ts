@@ -7,7 +7,7 @@ import { loadConfig } from '@codedocs/core';
 import { FileReader } from '@codedocs/core';
 import { ParserEngine } from '@codedocs/core';
 import { getCliStrings, t, initLocale } from '../i18n.js';
-import { resolveBuiltinParsers } from '../parser-registry.js';
+import { resolveBuiltinParsers, detectParsersFromSource } from '../parser-registry.js';
 import { resolveSourcePatterns } from '../utils/source-patterns.js';
 
 export const analyzeCommand = new Command('analyze')
@@ -35,9 +35,20 @@ export const analyzeCommand = new Command('analyze')
 
       spinner.text = strings.readingFiles;
 
-      // Resolve string parser names to actual parser instances first.
+      // Resolve parser names – auto-detect from source when config has none.
+      const sourceDir = config.source || './src';
+      let parserNames: (string | any)[] = (config.parsers as any) || [];
+      if (parserNames.length === 0) {
+        const detected = await detectParsersFromSource(sourceDir);
+        if (detected.length > 0) {
+          spinner.stop();
+          console.log(chalk.dim(`  Auto-detected parsers: ${detected.join(', ')}`));
+          spinner.start(strings.readingFiles);
+          parserNames = detected;
+        }
+      }
       const { parsers: resolvedParsers, errors: parserErrors } =
-        await resolveBuiltinParsers(config.parsers as any);
+        await resolveBuiltinParsers(parserNames);
 
       // Warn about parser load failures (visible before spinner completes)
       if (parserErrors.length > 0) {
@@ -63,7 +74,6 @@ export const analyzeCommand = new Command('analyze')
 
       // Read source files based on parser file patterns (multi-language aware).
       const fileReader = new FileReader();
-      const sourceDir = config.source || './src';
       const patterns = resolveSourcePatterns(resolvedParsers);
       const sourceFiles = await fileReader.readFiles(sourceDir, patterns);
 
@@ -74,8 +84,8 @@ export const analyzeCommand = new Command('analyze')
       }
 
       spinner.text = t(strings.analyzingFiles, { n: sourceFiles.length });
-      const parserNames = resolvedParsers.map(p => p.name).join(', ');
-      console.log(chalk.dim(`  Found ${sourceFiles.length} files to analyze (parsers: ${parserNames})`));
+      const parserLabel = resolvedParsers.map(p => p.name).join(', ');
+      console.log(chalk.dim(`  Found ${sourceFiles.length} files to analyze (parsers: ${parserLabel})`));
 
       const parserEngine = new ParserEngine(resolvedParsers);
 
