@@ -32,20 +32,33 @@ const PARSER_ENTRIES: Record<string, ParserEntry> = {
   openapi: { package: '@codedocs/parser-openapi', exportName: 'openApiParser', defaultOptions: { parseSchemas: true } },
 };
 
+export interface ParserLoadError {
+  name: string;
+  package: string;
+  reason: string;
+}
+
+export interface ResolveResult {
+  parsers: ParserPlugin[];
+  errors: ParserLoadError[];
+}
+
 /**
  * Resolve parser names (strings) to actual ParserPlugin instances.
  * Accepts mixed arrays of string names and ParserPlugin objects.
+ * Returns both resolved parsers and any load errors so the CLI can display them.
  */
 export async function resolveBuiltinParsers(
   parsers: (string | ParserPlugin)[],
-): Promise<ParserPlugin[]> {
+): Promise<ResolveResult> {
   const resolved: ParserPlugin[] = [];
+  const errors: ParserLoadError[] = [];
 
   for (const item of parsers) {
     if (typeof item === 'string') {
       const entry = PARSER_ENTRIES[item];
       if (!entry) {
-        console.warn(`Unknown parser: "${item}". Skipping.`);
+        errors.push({ name: item, package: 'unknown', reason: `Unknown parser: "${item}"` });
         continue;
       }
 
@@ -53,12 +66,20 @@ export async function resolveBuiltinParsers(
         const mod = await import(entry.package);
         const factory: ParserFactory = mod[entry.exportName];
         if (typeof factory !== 'function') {
-          console.warn(`Parser "${item}" does not export "${entry.exportName}". Skipping.`);
+          errors.push({
+            name: item,
+            package: entry.package,
+            reason: `Does not export "${entry.exportName}"`,
+          });
           continue;
         }
         resolved.push(factory(entry.defaultOptions));
       } catch {
-        console.warn(`Failed to load parser "${item}" (${entry.package}). Is it installed?`);
+        errors.push({
+          name: item,
+          package: entry.package,
+          reason: `Failed to load (${entry.package}). Is it installed?`,
+        });
       }
     } else {
       // Already a ParserPlugin object - pass through
@@ -66,17 +87,7 @@ export async function resolveBuiltinParsers(
     }
   }
 
-  return resolved;
-}
-
-/** Get all registered parser names */
-export function getRegisteredParserNames(): string[] {
-  return Object.keys(PARSER_ENTRIES);
-}
-
-/** Get parser entry by name */
-export function getParserEntry(name: string): ParserEntry | undefined {
-  return PARSER_ENTRIES[name];
+  return { parsers: resolved, errors };
 }
 
 /** Map package name to short parser name */

@@ -140,6 +140,8 @@ export async function loadLanguage(lang: TsLanguage): Promise<any> {
     throw new Error(`No grammar available for language: ${lang}`);
   }
 
+  const wasmFile = `tree-sitter-${lang}.wasm`;
+
   try {
     // Resolve .wasm file path using ESM-compatible require
     let wasmPath: string;
@@ -153,7 +155,6 @@ export async function loadLanguage(lang: TsLanguage): Promise<any> {
       wasmPath = esmRequire.resolve(`${packageName}/tree-sitter-javascript.wasm`);
     } else {
       // Most grammars: package-name/tree-sitter-lang.wasm
-      const wasmFile = `tree-sitter-${lang}.wasm`;
       wasmPath = esmRequire.resolve(`${packageName}/${wasmFile}`);
     }
 
@@ -161,11 +162,22 @@ export async function loadLanguage(lang: TsLanguage): Promise<any> {
     languageCache.set(lang, language);
     engineLogger.debug(`Loaded grammar: ${lang}`);
     return language;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Failed to load ${lang} grammar. Install: npm install ${packageName}\n${msg}`,
-    );
+  } catch {
+    // Fallback: try tree-sitter-wasms bundle (prebuilt WASM for all grammars)
+    try {
+      const wasmPath = esmRequire.resolve(`tree-sitter-wasms/out/${wasmFile}`);
+      const language = await Parser.Language.load(wasmPath);
+      languageCache.set(lang, language);
+      engineLogger.debug(`Loaded grammar via tree-sitter-wasms: ${lang}`);
+      return language;
+    } catch (fallbackError) {
+      const msg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      throw new Error(
+        `Failed to load ${lang} grammar. Install either:\n`
+        + `  npm install ${packageName}   (with .wasm file)\n`
+        + `  npm install tree-sitter-wasms (prebuilt bundle)\n${msg}`,
+      );
+    }
   }
 }
 

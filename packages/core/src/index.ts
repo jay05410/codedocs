@@ -66,12 +66,6 @@ export {
 // Tree-sitter WASM engine
 export {
   isTreeSitterAvailable,
-  loadLanguage,
   parseCode,
-  queryCode,
-  findNodes,
-  captureText,
-  captureAllTexts,
-  detectLanguage,
 } from './parser/tree-sitter-engine.js';
-export type { TsQueryMatch, TsNode, TsLanguage } from './parser/tree-sitter-engine.js';
+export type { TsLanguage } from './parser/tree-sitter-engine.js';

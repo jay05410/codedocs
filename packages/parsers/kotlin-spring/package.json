@@ -18,7 +18,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@codedocs/core": "*"
+    "@codedocs/core": "*",
+    "tree-sitter-wasms": "^0.1.13"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

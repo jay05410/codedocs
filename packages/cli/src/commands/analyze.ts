@@ -36,7 +36,30 @@ export const analyzeCommand = new Command('analyze')
       spinner.text = strings.readingFiles;
 
       // Resolve string parser names to actual parser instances first.
-      const resolvedParsers = await resolveBuiltinParsers(config.parsers as any);
+      const { parsers: resolvedParsers, errors: parserErrors } =
+        await resolveBuiltinParsers(config.parsers as any);
+
+      // Warn about parser load failures (visible before spinner completes)
+      if (parserErrors.length > 0) {
+        spinner.stop();
+        for (const err of parserErrors) {
+          console.error(chalk.yellow(`  ⚠ Parser "${err.name}": ${err.reason}`));
+        }
+        spinner.start(strings.readingFiles);
+      }
+
+      if (resolvedParsers.length === 0) {
+        spinner.fail('No parsers loaded');
+        console.error(chalk.red('\n  No parsers were loaded. Check your config and installed packages.'));
+        if (parserErrors.length > 0) {
+          console.error(chalk.yellow('  Failed parsers:'));
+          for (const err of parserErrors) {
+            console.error(chalk.yellow(`    - ${err.name}: ${err.reason}`));
+          }
+        }
+        console.log('');
+        process.exit(1);
+      }
 
       // Read source files based on parser file patterns (multi-language aware).
       const fileReader = new FileReader();
@@ -51,7 +74,8 @@ export const analyzeCommand = new Command('analyze')
       }
 
       spinner.text = t(strings.analyzingFiles, { n: sourceFiles.length });
-      console.log(chalk.dim(`  Found ${sourceFiles.length} files to analyze`));
+      const parserNames = resolvedParsers.map(p => p.name).join(', ');
+      console.log(chalk.dim(`  Found ${sourceFiles.length} files to analyze (parsers: ${parserNames})`));
 
       const parserEngine = new ParserEngine(resolvedParsers);
 
@@ -65,7 +89,14 @@ export const analyzeCommand = new Command('analyze')
         console.log(chalk.dim(`    Endpoints: ${analysisResult.endpoints?.length || 0}`));
         console.log(chalk.dim(`    Entities: ${analysisResult.entities?.length || 0}`));
         console.log(chalk.dim(`    Services: ${analysisResult.services?.length || 0}`));
+        console.log(chalk.dim(`    Types: ${analysisResult.types?.length || 0}`));
       }
+
+      // Domain-specific counts
+      const totalEndpoints = analysisResult.endpoints?.length || 0;
+      const totalServices = analysisResult.services?.length || 0;
+      const totalEntities = analysisResult.entities?.length || 0;
+      const totalTypes = analysisResult.types?.length || 0;
 
       // Save analysis results
       const outputPath = resolve(process.cwd(), options.output);
@@ -80,10 +111,16 @@ export const analyzeCommand = new Command('analyze')
           totalFiles: sourceFiles.length,
           successCount,
           errorCount,
-          totalExports: analysisResult.endpoints?.length || 0,
-          totalFunctions: analysisResult.services?.length || 0,
-          totalClasses: analysisResult.entities?.length || 0,
-          totalComponents: analysisResult.types?.length || 0,
+          // Domain-specific (primary)
+          totalEndpoints,
+          totalServices,
+          totalEntities,
+          totalTypes,
+          // Legacy aliases (backward compat with generate.ts)
+          totalExports: totalEndpoints,
+          totalFunctions: totalServices,
+          totalClasses: totalEntities,
+          totalComponents: totalTypes,
         },
         results: [analysisResult],
       };
@@ -98,10 +135,10 @@ export const analyzeCommand = new Command('analyze')
       if (errorCount > 0) {
         console.log(chalk.yellow(`  ${t(strings.errors, { n: errorCount })}`));
       }
-      console.log(chalk.dim(`  ${t(strings.totalExports, { n: analysisData.summary.totalExports })}`));
-      console.log(chalk.dim(`  ${t(strings.totalFunctions, { n: analysisData.summary.totalFunctions })}`));
-      console.log(chalk.dim(`  ${t(strings.totalClasses, { n: analysisData.summary.totalClasses })}`));
-      console.log(chalk.dim(`  ${t(strings.totalComponents, { n: analysisData.summary.totalComponents })}`));
+      console.log(chalk.dim(`  Endpoints: ${totalEndpoints}`));
+      console.log(chalk.dim(`  Services: ${totalServices}`));
+      console.log(chalk.dim(`  Entities: ${totalEntities}`));
+      console.log(chalk.dim(`  Types: ${totalTypes}`));
       console.log(chalk.dim(`\n  ${t(strings.resultsSaved, { path: options.output })}\n`));
 
       if (errorCount > 0) {

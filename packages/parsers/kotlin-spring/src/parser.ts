@@ -1,4 +1,7 @@
-import type { ParserPlugin, SourceFile, ParseResult, EndpointInfo, EntityInfo, ServiceInfo, TypeInfo, DependencyInfo } from '@codedocs/core';
+import type {
+  ParserPlugin, SourceFile, ParseResult,
+  EndpointInfo, EntityInfo, ServiceInfo, TypeInfo, DependencyInfo,
+} from '@codedocs/core';
 
 export interface KotlinSpringParserOptions {
   /** Auto-detect frameworks (DGS GraphQL, JPA, etc.) */
@@ -13,6 +16,15 @@ export function kotlinSpringParser(options: KotlinSpringParserOptions = {}): Par
     filePattern: ['**/*.kt', '**/*.kts'],
 
     async parse(files: SourceFile[]): Promise<ParseResult> {
+      const { isTreeSitterAvailable, parseCode } = await import('@codedocs/core');
+
+      if (!(await isTreeSitterAvailable())) {
+        throw new Error(
+          'Tree-sitter is required for Kotlin parsing.\n'
+          + 'Install: npm install web-tree-sitter tree-sitter-kotlin',
+        );
+      }
+
       const endpoints: EndpointInfo[] = [];
       const entities: EntityInfo[] = [];
       const services: ServiceInfo[] = [];
@@ -20,40 +32,78 @@ export function kotlinSpringParser(options: KotlinSpringParserOptions = {}): Par
       const dependencies: DependencyInfo[] = [];
 
       for (const file of files) {
-        // REST Controllers
-        if (isRestController(file.content)) {
-          endpoints.push(...parseRestEndpoints(file));
+        let tree: any;
+        try {
+          const result = await parseCode(file.content, 'kotlin');
+          tree = result.tree;
+        } catch {
+          continue;
         }
 
-        // DGS GraphQL Fetchers
-        if (detectFrameworks && isDgsFetcher(file.content)) {
-          endpoints.push(...parseDgsOperations(file));
-        }
+        try {
+          const root = tree.rootNode;
 
-        // JPA / MongoDB Entities
-        if (isEntity(file.content)) {
-          const entity = parseEntity(file);
-          if (entity) entities.push(entity);
-        }
+          for (const cls of root.descendantsOfType('class_declaration')) {
+            const annotations = extractAnnotations(cls);
+            const className = fieldText(cls, 'name') ?? childText(cls, 'type_identifier') ?? '';
+            if (!className) continue;
 
-        // Services
-        if (isService(file.content)) {
-          const svc = parseService(file);
-          if (svc) {
-            services.push(svc);
-            dependencies.push(
-              ...svc.dependencies.map((dep) => ({
-                source: svc.name,
-                target: dep,
-                type: 'inject' as const,
-              })),
-            );
+            const modifiers = extractModifiers(cls);
+
+            // REST Controller
+            if (hasAnnotation(annotations, 'RestController', 'Controller')) {
+              endpoints.push(...parseRestEndpoints(cls, className, annotations, file));
+            }
+
+            // DGS GraphQL
+            if (detectFrameworks && hasAnnotation(annotations, 'DgsComponent')) {
+              endpoints.push(...parseDgsEndpoints(cls, className, file));
+            }
+
+            // JPA / MongoDB Entity
+            if (hasAnnotation(annotations, 'Entity', 'Document', 'Table')) {
+              entities.push(parseEntity(cls, className, annotations, file));
+            }
+
+            // Service / Component (but not controller)
+            if (hasAnnotation(annotations, 'Service', 'Component')
+              && !hasAnnotation(annotations, 'RestController', 'Controller', 'DgsComponent')) {
+              const svc = parseService(cls, className, file);
+              services.push(svc);
+              dependencies.push(...svc.dependencies.map(dep => ({
+                source: svc.name, target: dep, type: 'inject' as const,
+              })));
+            }
+
+            // Data class
+            if (modifiers.includes('data')) {
+              types.push(parseDataClass(cls, className, file));
+            }
+
+            // Enum class
+            if (modifiers.includes('enum')) {
+              types.push(parseEnumClass(cls, className, file));
+            }
+
+            // Sealed class
+            if (modifiers.includes('sealed')) {
+              types.push(parseSealedClass(cls, className, file));
+            }
           }
-        }
 
-        // Data classes (DTOs, Inputs, Filters)
-        if (isDataClass(file.content)) {
-          types.push(...parseDataClasses(file));
+          // Object declarations → services
+          for (const obj of root.descendantsOfType('object_declaration')) {
+            const objName = fieldText(obj, 'name') ?? childText(obj, 'type_identifier') ?? '';
+            if (!objName) continue;
+            const methods = obj.descendantsOfType('function_declaration')
+              .map((f: any) => fieldText(f, 'name') ?? childText(f, 'simple_identifier') ?? '')
+              .filter(Boolean);
+            if (methods.length > 0) {
+              services.push({ name: objName, filePath: file.path, methods, dependencies: [] });
+            }
+          }
+        } finally {
+          tree.delete();
         }
       }
 
@@ -62,328 +112,282 @@ export function kotlinSpringParser(options: KotlinSpringParserOptions = {}): Par
   };
 }
 
-// ── Detection helpers ──
+// ── AST Helpers ──
 
-function isRestController(content: string): boolean {
-  return /@RestController|@Controller/.test(content);
+interface Annotation { name: string; args: string }
+
+function extractAnnotations(node: any): Annotation[] {
+  const result: Annotation[] = [];
+  const sources = [
+    ...(node.namedChildren?.filter((c: any) => c.type === 'modifiers') ?? []),
+    node, // direct children
+  ];
+  for (const src of sources) {
+    for (const annot of src.descendantsOfType?.('annotation') ?? []) {
+      const userType = annot.descendantsOfType?.('user_type')?.[0];
+      const name = (userType?.descendantsOfType?.('type_identifier')?.[0]
+        ?? userType?.descendantsOfType?.('simple_identifier')?.[0])?.text ?? '';
+      if (name) {
+        result.push({ name, args: annot.descendantsOfType?.('value_arguments')?.[0]?.text ?? '' });
+      }
+    }
+  }
+  return result;
 }
 
-function isDgsFetcher(content: string): boolean {
-  return /@DgsComponent|@DgsQuery|@DgsMutation|@DgsSubscription/.test(content);
+function extractModifiers(node: any): string[] {
+  const result: string[] = [];
+  for (const mod of node.namedChildren?.filter((c: any) => c.type === 'modifiers') ?? []) {
+    for (const child of mod.namedChildren ?? []) {
+      if (['class_modifier', 'visibility_modifier', 'inheritance_modifier'].includes(child.type)) {
+        result.push(child.text);
+      }
+    }
+  }
+  return result;
 }
 
-function isEntity(content: string): boolean {
-  return /@Entity|@Document|@Table/.test(content);
+function hasAnnotation(annotations: Annotation[], ...names: string[]): boolean {
+  return annotations.some(a => names.includes(a.name));
 }
 
-function isService(content: string): boolean {
-  return /@Service|@Component/.test(content) && !/@RestController|@Controller|@DgsComponent/.test(content);
+function fieldText(node: any, field: string): string | undefined {
+  return node.childForFieldName?.(field)?.text;
 }
 
-function isDataClass(content: string): boolean {
-  return /^data class /m.test(content);
+function childText(node: any, type: string): string | undefined {
+  return node.namedChildren?.find((c: any) => c.type === type)?.text;
 }
 
-// ── REST Parser ──
+function stringArg(args: string): string {
+  return args.match(/["']([^"']*?)["']/)?.[1] ?? '';
+}
 
-function parseRestEndpoints(file: SourceFile): EndpointInfo[] {
+function namedArg(args: string, key: string): string | undefined {
+  return args.match(new RegExp(`${key}\\s*=\\s*["']([^"']+)["']`))?.[1];
+}
+
+function annotationArg(annotations: Annotation[], name: string): string {
+  const ann = annotations.find(a => a.name === name);
+  return ann ? stringArg(ann.args) : '';
+}
+
+function constructorParams(cls: any): any[] {
+  return cls.descendantsOfType?.('primary_constructor')?.[0]
+    ?.descendantsOfType?.('class_parameter') ?? [];
+}
+
+function paramType(param: any): string {
+  // Use direct children to avoid picking up types from annotations
+  return (param.namedChildren?.find((c: any) => c.type === 'user_type')
+    ?? param.namedChildren?.find((c: any) => c.type === 'nullable_type'))?.text?.replace('?', '') ?? 'Any';
+}
+
+function serviceRef(cls: any): string | undefined {
+  for (const param of constructorParams(cls)) {
+    const typeId = param.descendantsOfType?.('user_type')?.[0]
+      ?.descendantsOfType?.('type_identifier')?.[0];
+    if (typeId?.text?.endsWith('Service')) return typeId.text;
+  }
+  return undefined;
+}
+
+function returnType(fn: any): string {
+  return (fn.childForFieldName?.('return_type')
+    ?? fn.namedChildren?.find((c: any) => c.type === 'user_type'))?.text ?? 'Unit';
+}
+
+// ── Domain Parsers ──
+
+function parseRestEndpoints(cls: any, className: string, annotations: Annotation[], file: SourceFile): EndpointInfo[] {
+  const basePath = annotationArg(annotations, 'RequestMapping');
   const endpoints: EndpointInfo[] = [];
-  const classMatch = file.content.match(/class\s+(\w+)/);
-  const className = classMatch?.[1] || 'UnknownController';
-
-  // Base path from @RequestMapping
-  const basePath = file.content.match(/@RequestMapping\(["']([^"']+)["']\)/)?.[1] || '';
-
-  // Find method mappings
-  const methodPatterns = [
-    { regex: /@GetMapping\(["']([^"']*?)["']\)/g, method: 'GET' },
-    { regex: /@PostMapping\(["']([^"']*?)["']\)/g, method: 'POST' },
-    { regex: /@PutMapping\(["']([^"']*?)["']\)/g, method: 'PUT' },
-    { regex: /@DeleteMapping\(["']([^"']*?)["']\)/g, method: 'DELETE' },
-    { regex: /@PatchMapping\(["']([^"']*?)["']\)/g, method: 'PATCH' },
+  const mappings = [
+    { ann: 'GetMapping', method: 'GET' },
+    { ann: 'PostMapping', method: 'POST' },
+    { ann: 'PutMapping', method: 'PUT' },
+    { ann: 'DeleteMapping', method: 'DELETE' },
+    { ann: 'PatchMapping', method: 'PATCH' },
   ];
 
-  for (const { regex, method } of methodPatterns) {
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(file.content)) !== null) {
-      const path = basePath + (match[1] || '');
-      // Find the function name after the annotation
-      const afterAnnotation = file.content.slice(match.index);
-      const funMatch = afterAnnotation.match(/fun\s+(\w+)/);
-      const handler = funMatch?.[1] || 'unknown';
+  for (const fn of cls.descendantsOfType?.('function_declaration') ?? []) {
+    const fnAnnotations = extractAnnotations(fn);
+    const fnName = fieldText(fn, 'name') ?? childText(fn, 'simple_identifier') ?? 'unknown';
 
-      // Find return type
-      const returnMatch = afterAnnotation.match(/fun\s+\w+\([^)]*\)\s*:\s*([^\s{]+)/);
-      const returnType = returnMatch?.[1] || 'Unit';
-
-      // Find parameters
-      const params = parseMethodParameters(afterAnnotation);
-
-      // Find service reference
-      const serviceRef = findServiceRef(file.content);
-
+    for (const { ann, method } of mappings) {
+      const mapping = fnAnnotations.find(a => a.name === ann);
+      if (!mapping) continue;
+      const path = basePath + (stringArg(mapping.args) || '');
       endpoints.push({
         protocol: 'rest',
         httpMethod: method,
         path: path || '/',
         name: `${method} ${path || '/'}`,
-        handler,
+        handler: fnName,
         handlerClass: className,
-        parameters: params,
-        returnType,
-        serviceRef,
+        parameters: extractParams(fn),
+        returnType: returnType(fn),
+        serviceRef: serviceRef(cls),
         filePath: file.path,
       });
     }
   }
-
   return endpoints;
 }
 
-// ── DGS GraphQL Parser ──
-
-function parseDgsOperations(file: SourceFile): EndpointInfo[] {
+function parseDgsEndpoints(cls: any, className: string, file: SourceFile): EndpointInfo[] {
   const endpoints: EndpointInfo[] = [];
-  const classMatch = file.content.match(/class\s+(\w+)/);
-  const className = classMatch?.[1] || 'UnknownFetcher';
-
-  const opPatterns = [
-    { regex: /@DgsQuery/g, type: 'Query' as const },
-    { regex: /@DgsMutation/g, type: 'Mutation' as const },
-    { regex: /@DgsSubscription/g, type: 'Subscription' as const },
+  const opMap = [
+    { ann: 'DgsQuery', type: 'Query' as const },
+    { ann: 'DgsMutation', type: 'Mutation' as const },
+    { ann: 'DgsSubscription', type: 'Subscription' as const },
   ];
 
-  for (const { regex, type } of opPatterns) {
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(file.content)) !== null) {
-      const afterAnnotation = file.content.slice(match.index);
-      const funMatch = afterAnnotation.match(/fun\s+(\w+)/);
-      const fieldName = funMatch?.[1] || 'unknown';
+  for (const fn of cls.descendantsOfType?.('function_declaration') ?? []) {
+    const fnAnnotations = extractAnnotations(fn);
+    const fnName = fieldText(fn, 'name') ?? childText(fn, 'simple_identifier') ?? 'unknown';
 
-      const returnMatch = afterAnnotation.match(/fun\s+\w+\([^)]*\)\s*:\s*([^\s{]+)/);
-      const returnType = returnMatch?.[1] || 'Any';
-
-      const params = parseMethodParameters(afterAnnotation);
-      const serviceRef = findServiceRef(file.content);
-
-      endpoints.push({
-        protocol: 'graphql',
-        operationType: type,
-        fieldName,
-        name: `${type}.${fieldName}`,
-        handler: fieldName,
-        handlerClass: className,
-        parameters: params,
-        returnType,
-        serviceRef,
-        filePath: file.path,
-      });
+    for (const { ann, type } of opMap) {
+      if (fnAnnotations.some(a => a.name === ann)) {
+        endpoints.push({
+          protocol: 'graphql',
+          operationType: type,
+          fieldName: fnName,
+          name: `${type}.${fnName}`,
+          handler: fnName,
+          handlerClass: className,
+          parameters: extractParams(fn),
+          returnType: returnType(fn),
+          serviceRef: serviceRef(cls),
+          filePath: file.path,
+        });
+      }
     }
   }
-
   return endpoints;
 }
 
-// ── Entity Parser ──
+function parseEntity(cls: any, className: string, annotations: Annotation[], file: SourceFile): EntityInfo {
+  const tableName = namedArg(
+    annotations.find(a => a.name === 'Table')?.args ?? '', 'name',
+  ) ?? className.toLowerCase();
+  const isMongoDb = hasAnnotation(annotations, 'Document');
 
-function parseEntity(file: SourceFile): EntityInfo | null {
-  const classMatch = file.content.match(/class\s+(\w+)/);
-  if (!classMatch) return null;
-  const name = classMatch[1];
-
-  const tableMatch = file.content.match(/@Table\(name\s*=\s*["'](\w+)["']\)/);
-  const collectionMatch = file.content.match(/@Document\(collection\s*=\s*["'](\w+)["']\)/);
-  const tableName = tableMatch?.[1] || collectionMatch?.[1] || name.toLowerCase();
-
-  const isMongoDb = /@Document/.test(file.content);
-  const dbType = isMongoDb ? 'MongoDB' : 'MySQL';
-
-  // Parse columns (var/val fields)
-  const columns = parseEntityColumns(file.content);
-
-  // Parse relations
-  const relations = parseEntityRelations(file.content);
-
-  // Parse indexes
-  const indexes = parseEntityIndexes(file.content);
-
-  return {
-    name,
-    tableName,
-    dbType,
-    columns,
-    relations,
-    indexes,
-    filePath: file.path,
-  };
-}
-
-function parseEntityColumns(content: string): EntityInfo['columns'] {
   const columns: EntityInfo['columns'] = [];
-  const fieldRegex = /(?:val|var)\s+(\w+)\s*:\s*([^=\n,)]+)/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = fieldRegex.exec(content)) !== null) {
-    const fieldName = match[1];
-    const type = match[2].trim();
-
-    // Skip relation fields
-    if (/@OneToMany|@ManyToOne|@OneToOne|@ManyToMany/.test(content.slice(Math.max(0, match.index - 200), match.index))) {
-      continue;
-    }
-
-    const beforeField = content.slice(Math.max(0, match.index - 300), match.index);
-    const columnAnnotation = beforeField.match(/@Column\(([^)]*)\)/);
-    const idAnnotation = beforeField.includes('@Id');
-
-    const dbColumnName = columnAnnotation?.[1]?.match(/name\s*=\s*["'](\w+)["']/)?.[1] || fieldName;
-    const nullable = type.endsWith('?') || (columnAnnotation?.[1]?.includes('nullable = true') ?? false);
-
-    columns.push({
-      name: fieldName,
-      type: type.replace('?', ''),
-      dbColumnName,
-      nullable,
-      primaryKey: idAnnotation,
-      unique: columnAnnotation?.[1]?.includes('unique = true') ?? false,
-    });
-  }
-
-  return columns;
-}
-
-function parseEntityRelations(content: string): EntityInfo['relations'] {
   const relations: EntityInfo['relations'] = [];
   const relTypes = ['OneToOne', 'OneToMany', 'ManyToOne', 'ManyToMany'] as const;
 
-  for (const relType of relTypes) {
-    const regex = new RegExp(`@${relType}[^)]*\\)\\s*(?:val|var)\\s+\\w+\\s*:\\s*(?:List<|Set<|MutableList<)?(\\w+)`, 'g');
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(content)) !== null) {
-      relations.push({
-        type: relType,
-        target: match[1],
-      });
-    }
-  }
+  for (const param of constructorParams(cls)) {
+    const paramAnnotations = extractAnnotations(param);
+    const name = param.namedChildren?.find((c: any) => c.type === 'simple_identifier')?.text ?? '';
+    if (!name) continue;
 
-  return relations;
-}
-
-function parseEntityIndexes(content: string): string[] {
-  const indexes: string[] = [];
-  const indexRegex = /@Index\(name\s*=\s*["']([^"']+)["']\s*,\s*columnList\s*=\s*["']([^"']+)["']\)/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = indexRegex.exec(content)) !== null) {
-    indexes.push(`${match[1]}: ${match[2]}`);
-  }
-
-  return indexes;
-}
-
-// ── Service Parser ──
-
-function parseService(file: SourceFile): ServiceInfo | null {
-  const classMatch = file.content.match(/class\s+(\w+)/);
-  if (!classMatch) return null;
-
-  const name = classMatch[1];
-  const methods: string[] = [];
-  const deps: string[] = [];
-
-  // Find injected dependencies (constructor parameters)
-  const constructorMatch = file.content.match(/class\s+\w+\s*\(([^)]*)\)/);
-  if (constructorMatch) {
-    const params = constructorMatch[1];
-    const depRegex = /(?:private\s+)?(?:val|var)\s+\w+\s*:\s*(\w+)/g;
-    let depMatch: RegExpExecArray | null;
-    while ((depMatch = depRegex.exec(params)) !== null) {
-      deps.push(depMatch[1]);
-    }
-  }
-
-  // Find public functions
-  const funRegex = /fun\s+(\w+)\s*\(/g;
-  let funMatch: RegExpExecArray | null;
-  while ((funMatch = funRegex.exec(file.content)) !== null) {
-    methods.push(funMatch[1]);
-  }
-
-  return { name, filePath: file.path, methods, dependencies: deps };
-}
-
-// ── Data Class Parser ──
-
-function parseDataClasses(file: SourceFile): TypeInfo[] {
-  const types: TypeInfo[] = [];
-  const classRegex = /data class\s+(\w+)\s*\(([^)]*)\)/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = classRegex.exec(file.content)) !== null) {
-    const name = match[1];
-    const fieldsStr = match[2];
-    const fields: TypeInfo['fields'] = [];
-
-    const fieldRegex = /(?:val|var)\s+(\w+)\s*:\s*([^,=]+?)(?:\s*=\s*[^,]+)?(?:,|$)/g;
-    let fieldMatch: RegExpExecArray | null;
-    while ((fieldMatch = fieldRegex.exec(fieldsStr)) !== null) {
-      const fieldType = fieldMatch[2].trim();
-      fields.push({
-        name: fieldMatch[1],
-        type: fieldType.replace('?', ''),
-        required: !fieldType.endsWith('?'),
-      });
+    const matchedRel = relTypes.find(r => paramAnnotations.some(a => a.name === r));
+    if (matchedRel) {
+      // Use direct child user_type to avoid picking up type_identifiers from annotations
+      const paramUserType = param.namedChildren?.find((c: any) => c.type === 'user_type');
+      const typeIds = paramUserType?.descendantsOfType?.('type_identifier') ?? [];
+      relations.push({ type: matchedRel, target: typeIds[typeIds.length - 1]?.text ?? 'Unknown' });
+      continue;
     }
 
-    const kind = name.toLowerCase().includes('input') ? 'input'
-      : name.toLowerCase().includes('response') || name.toLowerCase().includes('dto') ? 'response'
-      : 'dto';
-
-    types.push({ name, kind, fields, filePath: file.path });
-  }
-
-  return types;
-}
-
-// ── Shared Helpers ──
-
-function parseMethodParameters(codeAfterAnnotation: string): EndpointInfo['parameters'] {
-  const params: EndpointInfo['parameters'] = [];
-  const funMatch = codeAfterAnnotation.match(/fun\s+\w+\(([^)]*)\)/);
-  if (!funMatch) return params;
-
-  const paramsStr = funMatch[1];
-  const paramRegex = /(?:@(\w+)(?:\([^)]*\))?\s+)?(\w+)\s*:\s*([^,=]+)/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = paramRegex.exec(paramsStr)) !== null) {
-    const annotation = match[1];
-    const name = match[2];
-    const type = match[3].trim();
-
-    const locationMap: Record<string, string> = {
-      PathVariable: 'path',
-      RequestParam: 'query',
-      RequestBody: 'body',
-      RequestHeader: 'header',
-      CookieValue: 'cookie',
-      InputArgument: 'body',
-    };
-
-    params.push({
+    const type = paramType(param);
+    const nullable = param.text.includes('?');
+    const isId = paramAnnotations.some(a => a.name === 'Id');
+    const colAnnotation = paramAnnotations.find(a => a.name === 'Column');
+    columns.push({
       name,
-      type: type.replace('?', ''),
-      required: !type.endsWith('?'),
-      location: (annotation && locationMap[annotation] as 'path' | 'query' | 'body' | 'header' | 'cookie') || undefined,
+      type,
+      dbColumnName: namedArg(colAnnotation?.args ?? '', 'name') ?? name,
+      nullable,
+      primaryKey: isId,
+      unique: colAnnotation?.args.includes('unique = true') ?? false,
     });
   }
 
-  return params;
+  return { name: className, tableName, dbType: isMongoDb ? 'MongoDB' : 'MySQL', columns, relations, indexes: [], filePath: file.path };
 }
 
-function findServiceRef(content: string): string | undefined {
-  // Look for injected service in constructor
-  const match = content.match(/(?:private\s+)?(?:val|var)\s+\w+\s*:\s*(\w+Service)\b/);
-  return match?.[1];
+function parseService(cls: any, className: string, file: SourceFile): ServiceInfo {
+  const deps: string[] = [];
+  for (const param of constructorParams(cls)) {
+    const typeId = param.descendantsOfType?.('user_type')?.[0]
+      ?.descendantsOfType?.('type_identifier')?.[0];
+    if (typeId) deps.push(typeId.text);
+  }
+
+  const methods = (cls.descendantsOfType?.('function_declaration') ?? [])
+    .map((fn: any) => fieldText(fn, 'name') ?? childText(fn, 'simple_identifier') ?? '')
+    .filter(Boolean);
+
+  return { name: className, filePath: file.path, methods, dependencies: deps };
+}
+
+function parseDataClass(cls: any, className: string, file: SourceFile): TypeInfo {
+  const fields: TypeInfo['fields'] = [];
+  for (const param of constructorParams(cls)) {
+    const name = param.namedChildren?.find((c: any) => c.type === 'simple_identifier')?.text ?? '';
+    if (name) {
+      fields.push({ name, type: paramType(param), required: !param.text.includes('?') });
+    }
+  }
+  return { name: className, kind: inferKind(className), fields, filePath: file.path };
+}
+
+function parseEnumClass(cls: any, className: string, file: SourceFile): TypeInfo {
+  const fields = (cls.descendantsOfType?.('enum_entry') ?? [])
+    .map((e: any) => ({
+      name: fieldText(e, 'name') ?? childText(e, 'simple_identifier') ?? '',
+      type: className,
+      required: true,
+    }))
+    .filter((f: any) => f.name);
+  return { name: className, kind: 'enum', fields, filePath: file.path };
+}
+
+function parseSealedClass(cls: any, className: string, file: SourceFile): TypeInfo {
+  const fields = (cls.descendantsOfType?.('class_declaration') ?? [])
+    .map((sub: any) => fieldText(sub, 'name') ?? childText(sub, 'type_identifier') ?? '')
+    .filter((n: string) => n && n !== className)
+    .map((n: string) => ({ name: n, type: className, required: true }));
+  return { name: className, kind: 'type', fields, filePath: file.path };
+}
+
+function extractParams(fn: any): EndpointInfo['parameters'] {
+  const locationMap: Record<string, 'path' | 'query' | 'body' | 'header' | 'cookie'> = {
+    PathVariable: 'path', RequestParam: 'query', RequestBody: 'body',
+    RequestHeader: 'header', CookieValue: 'cookie', InputArgument: 'body',
+  };
+
+  // In Kotlin tree-sitter, function parameter annotations are in sibling
+  // `parameter_modifiers` nodes, NOT inside the `parameter` node itself.
+  // Walk function_value_parameters children and pair modifiers with params.
+  const valParams = fn.descendantsOfType?.('function_value_parameters')?.[0];
+  if (!valParams) return [];
+
+  const result: EndpointInfo['parameters'] = [];
+  const children: any[] = valParams.namedChildren ?? [];
+  let pendingModifiers: Annotation[] = [];
+
+  for (const child of children) {
+    if (child.type === 'parameter_modifiers') {
+      pendingModifiers = extractAnnotations(child);
+    } else if (child.type === 'parameter') {
+      const name = child.namedChildren?.find((c: any) => c.type === 'simple_identifier')?.text ?? '';
+      const type = paramType(child);
+      const annotation = pendingModifiers[0]?.name;
+      if (name) {
+        result.push({ name, type, required: !child.text.includes('?'), location: annotation ? locationMap[annotation] : undefined });
+      }
+      pendingModifiers = [];
+    }
+  }
+  return result;
+}
+
+function inferKind(name: string): 'dto' | 'input' | 'response' | 'enum' | 'interface' | 'type' {
+  const lower = name.toLowerCase();
+  if (lower.includes('input')) return 'input';
+  if (lower.includes('response') || lower.includes('dto')) return 'response';
+  return 'dto';
 }
