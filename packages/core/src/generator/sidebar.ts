@@ -98,7 +98,7 @@ export class SidebarGenerator {
 
     // overview.md and index.md belong to the auto section
     if (page.path === 'overview.md' || page.path === 'index.md') {
-      return sections.find(s => s.type === 'auto') || null;
+      return sections.find(s => s.type === 'auto' || s.id === 'overview') || null;
     }
 
     return null;

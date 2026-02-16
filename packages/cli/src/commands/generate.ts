@@ -34,7 +34,13 @@ export const generateCommand = new Command('generate')
 
       // Initialize AI provider if configured
       let aiProvider: AiProvider | null = null;
-      const aiFeatures = config.ai?.features;
+      const aiFeatures = {
+        domainGrouping: true,
+        flowDiagrams: true,
+        codeExplanation: true,
+        releaseNoteAnalysis: true,
+        ...config.ai?.features,
+      };
       if (config.ai?.provider && config.ai?.model) {
         try {
           aiProvider = createAiProvider({
@@ -42,6 +48,9 @@ export const generateCommand = new Command('generate')
             model: config.ai.model,
             apiKey: config.ai.apiKey,
             baseUrl: config.ai.baseUrl,
+            auth: config.ai.auth,
+            mcp: config.ai.mcp,
+            timeout: config.ai.timeout,
           });
           if (options.verbose) {
             console.log(chalk.dim(`\n  AI: ${config.ai.provider} / ${config.ai.model}`));
@@ -112,6 +121,14 @@ export const generateCommand = new Command('generate')
         }
       }
 
+      // Deduplicate pages by path (keep last occurrence which has most data)
+      const pageMap = new Map<string, GeneratedPage>();
+      for (const page of allPages) {
+        pageMap.set(page.path, page);
+      }
+      allPages.length = 0;
+      allPages.push(...pageMap.values());
+
       // Step 2: AI enrichment (optional, based on feature flags)
       const mergedAnalysis = mergeAnalysisResults(analysisResults);
       if (aiProvider) {
@@ -152,9 +169,9 @@ export const generateCommand = new Command('generate')
         generatedCount++;
       }
 
-      // Generate component index if there are component docs
+      // Generate component index if there are component docs (skip if consolidated index already exists)
       const componentFiles = generatedFiles.filter((f) => f.startsWith('components/'));
-      if (componentFiles.length > 0) {
+      if (componentFiles.length > 0 && !componentFiles.includes('components/index.md')) {
         const compIndexContent = generateSectionIndex(
           i18n.overview.components,
           componentFiles,
@@ -169,9 +186,9 @@ export const generateCommand = new Command('generate')
         generatedCount++;
       }
 
-      // Generate hooks index if there are hook/service docs
+      // Generate hooks index if there are hook/service docs (skip if consolidated index already exists)
       const hookFiles = generatedFiles.filter((f) => f.startsWith('hooks/'));
-      if (hookFiles.length > 0) {
+      if (hookFiles.length > 0 && !hookFiles.includes('hooks/index.md')) {
         const hookIndexContent = generateSectionIndex(
           i18n.overview.hooksAndServices,
           hookFiles,
@@ -423,8 +440,9 @@ function buildEffectiveSections(configSections: SectionConfig[], analysisData: a
   const results = analysisData.results || [];
   const summary = analysisData.summary || {};
 
-  // Always add overview
-  sections.push({ id: 'overview', label: 'Overview', type: 'auto' });
+  // Overview is generated unconditionally by MarkdownGenerator.generate().
+  // Use 'custom' (no dir) so the switch case produces no pages, avoiding duplication.
+  sections.push({ id: 'overview', label: 'Overview', type: 'custom' });
 
   // Add endpoints section if any endpoints found
   if (summary.endpoints > 0 || results.some((r: any) => r.endpoints?.length > 0)) {
@@ -498,7 +516,13 @@ async function enrichWithAI(
   spinner: ReturnType<typeof import('ora').default>,
   options: { verbose?: boolean },
 ): Promise<void> {
-  const features = config.ai?.features || {};
+  const features = {
+    domainGrouping: true,
+    flowDiagrams: true,
+    codeExplanation: true,
+    releaseNoteAnalysis: true,
+    ...config.ai?.features,
+  };
   const locale = (config.docs?.locale || 'en') as string;
   const localeInstr = locale !== 'en'
     ? `\nIMPORTANT: Write all text content in ${getLocaleName(locale as Locale)}.`
@@ -607,7 +631,66 @@ async function enrichWithAI(
     }
   }
 
-  // 3. Enhanced architecture diagram via AI
+  // 3. Service/hook description enrichment via AI
+  if (features.codeExplanation) {
+    const servicePages = pages.filter(p => p.path.startsWith('hooks/'));
+    if (servicePages.length > 0 && (analysis.services || []).length > 0) {
+      const maxSvc = Math.min((analysis.services || []).length, AI_DEFAULTS.maxComponentDescriptions);
+      spinner.text = `Generating service/hook descriptions (${maxSvc})...`;
+      try {
+        let enriched = 0;
+
+        for (const svc of (analysis.services || []).slice(0, maxSvc)) {
+          const methodsList = svc.methods.join(', ') || '(none)';
+          const depsList = svc.dependencies.join(', ') || '(none)';
+
+          const userMsg = `Describe this service/hook concisely for developer documentation:
+Name: ${svc.name}
+Methods: ${methodsList}
+Dependencies: ${depsList}
+File: ${svc.filePath}
+
+Write 2-3 sentences describing what this service/hook does, its role in the application, and key usage patterns. Be specific and technical.`;
+
+          const description = await provider.chat([
+            { role: 'system', content: 'You are a technical documentation writer. Write concise, accurate descriptions for code documentation.' + localeInstr },
+            { role: 'user', content: userMsg },
+          ]);
+
+          if (description && description.trim().length > 10) {
+            // Find and update the service accordion in hook pages
+            for (const page of servicePages) {
+              const marker = `<details class="service-accordion`;
+              const svcMarker = `id="svc-${svc.name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}"`;
+              if (page.content.includes(svcMarker)) {
+                // Insert description after the summary closing tag
+                const summaryEnd = '</summary>\n\n';
+                const idx = page.content.indexOf(svcMarker);
+                if (idx >= 0) {
+                  const afterIdx = page.content.indexOf(summaryEnd, idx);
+                  if (afterIdx >= 0) {
+                    const insertPos = afterIdx + summaryEnd.length;
+                    page.content = page.content.slice(0, insertPos) + description.trim() + '\n\n' + page.content.slice(insertPos);
+                    enriched++;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (options.verbose) {
+          console.log(chalk.dim(`\n  ✓ Enriched ${enriched} service/hook descriptions`));
+        }
+      } catch (error) {
+        if (options.verbose) {
+          console.log(chalk.yellow(`\n  Service enrichment skipped: ${(error as Error).message}`));
+        }
+      }
+    }
+  }
+
+  // 4. Enhanced architecture diagram via AI
   if (features.flowDiagrams) {
     const archPage = pages.find(p => p.path === 'architecture.md');
     if (archPage && (analysis.services?.length > 0 || analysis.dependencies?.length > 0)) {
@@ -806,6 +889,19 @@ function buildSidebarFromGroups(
       sidebar.push({ type: 'category', label: group.name, items, position });
       position += 10;
     }
+  }
+
+  // Add consolidated index pages as top-level nav items
+  const componentIndex = pages.find(p => p.path === 'components/index.md');
+  if (componentIndex && !usedPageIds.has('components/index')) {
+    sidebar.push({ type: 'doc', label: componentIndex.title, id: 'components/index', position: 200 });
+    usedPageIds.add('components/index');
+  }
+
+  const hookIndex = pages.find(p => p.path === 'hooks/index.md');
+  if (hookIndex && !usedPageIds.has('hooks/index')) {
+    sidebar.push({ type: 'doc', label: hookIndex.title, id: 'hooks/index', position: 300 });
+    usedPageIds.add('hooks/index');
   }
 
   // Collect ungrouped pages

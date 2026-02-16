@@ -25,7 +25,9 @@ export async function buildStaticPages(docsDir: string): Promise<SsgPage[]> {
   for (const filePath of files) {
     const raw = await readFile(filePath, 'utf-8');
     const { meta, body } = extractFrontmatter(raw);
-    const result = await processor.process(body);
+    // Preserve mermaid code blocks as raw HTML so rehype-shiki won't transform them
+    const processedBody = preserveMermaidBlocks(body);
+    const result = await processor.process(processedBody);
 
     const slug = relative(docsDir, filePath)
       .replace(extname(filePath), '')
@@ -52,6 +54,16 @@ async function collectMarkdownFiles(dir: string): Promise<string[]> {
   return entries
     .filter((e) => e.isFile() && e.name.endsWith('.md'))
     .map((e) => resolve(e.parentPath || dir, e.name));
+}
+
+/**
+ * Convert mermaid fenced code blocks to raw HTML divs so rehype-shiki skips them.
+ * The build pipeline's decorateMermaidBlocks() will add the toolbar wrapper later.
+ */
+function preserveMermaidBlocks(markdown: string): string {
+  return markdown.replace(/```mermaid\n([\s\S]*?)```/g, (_match, code) => {
+    return `<div class="mermaid">\n${code.trim()}\n</div>`;
+  });
 }
 
 function buildHeadTags(meta: Record<string, string>, title: string): string {

@@ -132,10 +132,19 @@ export function createMcpProvider(config: AiProviderConfig): AiProvider {
         })
         .join('\n\n');
 
-      providerLogger.debug(`Executing: ${mcpConfig.command} ${(mcpConfig.args || []).slice(0, 2).join(' ')}...`);
+      // Auto-append stdin flag for known CLI tools if not already present
+      let effectiveArgs = mcpConfig.args || [];
+      const cmd = mcpConfig.command;
+      if ((cmd === 'codex' || cmd.endsWith('/codex')) && !effectiveArgs.includes('-')) {
+        effectiveArgs = [...effectiveArgs, '-'];
+      } else if ((cmd === 'gemini' || cmd.endsWith('/gemini')) && !effectiveArgs.includes('-')) {
+        effectiveArgs = [...effectiveArgs, '-'];
+      }
+
+      providerLogger.debug(`Executing: ${mcpConfig.command} ${effectiveArgs.slice(0, 3).join(' ')}...`);
 
       try {
-        const result = await execTool(mcpConfig.command, mcpConfig.args || [], timeout, prompt);
+        const result = await execTool(mcpConfig.command, effectiveArgs, timeout, prompt);
 
         if (!result) {
           throw new Error(`${mcpConfig.command} returned empty response`);

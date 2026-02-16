@@ -40,12 +40,12 @@ export interface TocHeading {
 export function buildTopNav(items: any[], basePrefix: string, currentSlug: string, s: any): NavItem[] {
   const navItems: NavItem[] = [];
   for (const item of items) {
-    if (item.type === 'category' && item.items) {
+    if (item.type === 'category' && item.items && item.items.length > 0) {
       const firstChild = item.items[0];
       const isActive = item.items.some((child: any) => child.id === currentSlug);
       navItems.push({
         label: item.label,
-        href: firstChild ? `${basePrefix}${firstChild.id}.html` : '#',
+        href: `${basePrefix}${firstChild.id}.html`,
         active: isActive,
       });
     } else {
@@ -56,13 +56,23 @@ export function buildTopNav(items: any[], basePrefix: string, currentSlug: strin
       });
     }
   }
-  // Add Memo nav item
-  navItems.push({
-    label: s.nav?.memo || 'Memo',
-    href: `${basePrefix}memo.html`,
-    active: currentSlug === 'memo',
+  // Deduplicate by label (case-insensitive), keeping first occurrence
+  const seen = new Set<string>();
+  const deduplicated = navItems.filter(item => {
+    const key = item.label.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
-  return navItems;
+  // Only add Memo if not already present
+  if (!deduplicated.some(item => item.href.includes('memo.html'))) {
+    deduplicated.push({
+      label: s.nav?.memo || 'Memo',
+      href: `${basePrefix}memo.html`,
+      active: currentSlug === 'memo',
+    });
+  }
+  return deduplicated;
 }
 
 export function addHeadingIds(html: string): string {
@@ -92,7 +102,16 @@ export function extractTocHeadings(html: string): TocHeading[] {
   while ((match = regex.exec(html)) !== null) {
     const level = parseInt(match[1].charAt(1));
     const id = match[2];
-    const text = match[3].replace(/<[^>]+>/g, '').trim();
+    let text = match[3].replace(/<[^>]+>/g, '').trim();
+    // Decode HTML entities (&#x26; → &, &amp; → &, etc.)
+    text = text
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+      .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'");
     headings.push({ id, text, level });
   }
   return headings;
@@ -117,11 +136,12 @@ export function buildTocHtml(headings: TocHeading[], s: any): string {
   </aside>`;
 }
 
-export function buildLeftSidebar(sidebarStructure: any[], currentSlug: string, basePrefix: string, s: any): string {
+export function buildLeftSidebar(sidebarStructure: any[], currentSlug: string, basePrefix: string, s: any, tocHeadings?: Array<{id: string, text: string, level: number}>): string {
   if (currentSlug === 'index' || currentSlug === 'memo') return '';
 
   // Find which section the current page belongs to
   var activeSection: any = null;
+  var isStandaloneDoc = false;
   for (var i = 0; i < sidebarStructure.length; i++) {
     var item = sidebarStructure[i];
     if (item.type === 'category' && item.items) {
@@ -133,19 +153,36 @@ export function buildLeftSidebar(sidebarStructure: any[], currentSlug: string, b
       }
       if (activeSection) break;
     } else if (item.id === currentSlug) {
-      // Top-level doc item (overview, architecture) -- no sidebar needed
-      return '';
+      // This is a standalone doc item (not in a category)
+      isStandaloneDoc = true;
+      activeSection = { label: item.label, items: [item] };
+      break;
     }
   }
 
-  if (!activeSection || !activeSection.items) return '';
+  // For category children with multiple pages: show sibling pages
+  if (activeSection && activeSection.items && activeSection.items.length > 1) {
+    var listItems = activeSection.items.map(function (child: any) {
+      var isActive = child.id === currentSlug;
+      return '<li class="left-sidebar-item' + (isActive ? ' active' : '') + '"><a href="' + basePrefix + child.id + '.html">' + escapeHtml(child.label) + '</a></li>';
+    }).join('\n');
 
-  var listItems = activeSection.items.map(function (child: any) {
-    var isActive = child.id === currentSlug;
-    return '<li class="left-sidebar-item' + (isActive ? ' active' : '') + '"><a href="' + basePrefix + child.id + '.html">' + escapeHtml(child.label) + '</a></li>';
-  }).join('\n');
+    return '<aside class="left-sidebar">\n  <div class="left-sidebar-container">\n    <div class="left-sidebar-title">' + escapeHtml(activeSection.label) + '</div>\n    <ul class="left-sidebar-list">\n' + listItems + '\n    </ul>\n  </div>\n</aside>';
+  }
 
-  return '<aside class="left-sidebar">\n  <div class="left-sidebar-container">\n    <div class="left-sidebar-title">' + escapeHtml(activeSection.label) + '</div>\n    <ul class="left-sidebar-list">\n' + listItems + '\n    </ul>\n  </div>\n</aside>';
+  // Single page in category OR standalone doc: show TOC headings as sidebar nav
+  if (activeSection && tocHeadings && tocHeadings.length > 0) {
+    // Filter to only h2 headings for main items, h3 as sub-items
+    var tocItems = tocHeadings.map(function (heading: {id: string, text: string, level: number}) {
+      var subClass = heading.level === 3 ? ' left-sidebar-sub-item' : '';
+      return '<li class="left-sidebar-item' + subClass + '"><a href="#' + escapeHtml(heading.id) + '">' + escapeHtml(heading.text) + '</a></li>';
+    }).join('\n');
+
+    return '<aside class="left-sidebar">\n  <div class="left-sidebar-container">\n    <div class="left-sidebar-title">' + escapeHtml(activeSection.label) + '</div>\n    <ul class="left-sidebar-list">\n' + tocItems + '\n    </ul>\n  </div>\n</aside>';
+  }
+
+  // No sidebar content available
+  return '';
 }
 
 export function buildBreadcrumb(sidebarStructure: any[], currentSlug: string, basePrefix: string, s: any): string {
@@ -223,7 +260,7 @@ export function getSectionDescription(label: string, s: any): string {
   return '';
 }
 
-export function buildDashboardContent(sidebarStructure: any[], basePrefix: string, projectName: string, s: any): string {
+export function buildDashboardContent(sidebarStructure: any[], basePrefix: string, projectName: string, s: any, stats?: { endpoints?: number; entities?: number; components?: number; services?: number; totalFiles?: number }): string {
   var cards = '';
   for (var i = 0; i < sidebarStructure.length; i++) {
     var item = sidebarStructure[i];
@@ -249,7 +286,25 @@ export function buildDashboardContent(sidebarStructure: any[], basePrefix: strin
   var title = projectName;
   var subtitle = s.home?.subtitle || 'Explore your project documentation';
 
-  return '<div class="dashboard"><div class="dashboard-header"><h1 class="dashboard-title">' + escapeHtml(title) + '</h1><p class="dashboard-subtitle">' + escapeHtml(subtitle) + '</p></div><div class="dashboard-grid">' + cards + '</div></div>';
+  var statsHtml = '';
+  if (stats) {
+    statsHtml = '<div class="dashboard-stats">';
+    if (stats.endpoints !== undefined) {
+      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.endpoints + '</span><span class="dashboard-stat-label">Endpoints</span></div>';
+    }
+    if (stats.entities !== undefined) {
+      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.entities + '</span><span class="dashboard-stat-label">Entities</span></div>';
+    }
+    if (stats.components !== undefined) {
+      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.components + '</span><span class="dashboard-stat-label">Components</span></div>';
+    }
+    if (stats.services !== undefined) {
+      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.services + '</span><span class="dashboard-stat-label">Services</span></div>';
+    }
+    statsHtml += '</div>';
+  }
+
+  return '<div class="dashboard"><div class="dashboard-header"><h1 class="dashboard-title">' + escapeHtml(title) + '</h1><p class="dashboard-subtitle">' + escapeHtml(subtitle) + '</p></div>' + statsHtml + '<div class="dashboard-grid">' + cards + '</div></div>';
 }
 
 export function buildMemoPageContent(s: any): string {
@@ -271,6 +326,7 @@ export function buildMemoPageContent(s: any): string {
   var noMemos = memoS.noMemos || 'No memos yet. Add memos from any documentation page.';
   var confirmDeleteAll = memoS.confirmDeleteAll || 'Are you sure you want to delete all memos? This cannot be undone.';
   var copiedLabel = memoS.copied || 'Copied!';
+  var searchPlaceholder = 'Search memos by content or target...';
 
   return '<div class="memo-page">' +
     '<div class="memo-page-header">' +
@@ -284,13 +340,25 @@ export function buildMemoPageContent(s: any): string {
       '<button class="memo-page-action-btn" id="memoPageCopy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> ' + escapeHtml(copyLabel) + '</button>' +
       '<button class="memo-page-action-btn memo-page-danger-btn" id="memoPageDeleteAll"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> ' + escapeHtml(deleteAllLabel) + '</button>' +
     '</div>' +
-    '<div class="memo-page-filters">' +
-      '<button class="memo-page-filter-btn active" data-filter="all">' + escapeHtml(filterAllLabel) + '</button>' +
-      '<button class="memo-page-filter-btn" data-filter="important">! ' + escapeHtml(catImportant) + '</button>' +
-      '<button class="memo-page-filter-btn" data-filter="add">+ ' + escapeHtml(catAdd) + '</button>' +
-      '<button class="memo-page-filter-btn" data-filter="modify">~ ' + escapeHtml(catModify) + '</button>' +
-      '<button class="memo-page-filter-btn" data-filter="delete">- ' + escapeHtml(catDelete) + '</button>' +
-      '<button class="memo-page-filter-btn" data-filter="other">? ' + escapeHtml(catOther) + '</button>' +
+    '<div class="memo-page-search">' +
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+      '<input type="text" id="memoPageSearch" placeholder="' + escapeHtml(searchPlaceholder) + '" class="memo-page-search-input">' +
+    '</div>' +
+    '<div class="memo-page-controls">' +
+      '<div class="memo-page-filters">' +
+        '<button class="memo-page-filter-btn active" data-filter="all">' + escapeHtml(filterAllLabel) + '</button>' +
+        '<button class="memo-page-filter-btn" data-filter="important">' + escapeHtml(catImportant) + '</button>' +
+        '<button class="memo-page-filter-btn" data-filter="add">' + escapeHtml(catAdd) + '</button>' +
+        '<button class="memo-page-filter-btn" data-filter="modify">' + escapeHtml(catModify) + '</button>' +
+        '<button class="memo-page-filter-btn" data-filter="delete">' + escapeHtml(catDelete) + '</button>' +
+        '<button class="memo-page-filter-btn" data-filter="other">' + escapeHtml(catOther) + '</button>' +
+      '</div>' +
+      '<div class="memo-page-sort">' +
+        '<span class="memo-page-sort-label">Sort:</span>' +
+        '<button class="memo-page-sort-btn active" data-sort="newest">Newest</button>' +
+        '<button class="memo-page-sort-btn" data-sort="oldest">Oldest</button>' +
+        '<button class="memo-page-sort-btn" data-sort="page">By Page</button>' +
+      '</div>' +
     '</div>' +
     '<div class="memo-page-count" id="memoPageCount"></div>' +
     '<div class="memo-page-list" id="memoPageList"></div>' +
@@ -298,41 +366,117 @@ export function buildMemoPageContent(s: any): string {
   '<script>' +
   '(function() {' +
     'var STORAGE_KEY = "codedocs-memos";' +
-    'var CATEGORIES = {important:"!",add:"+",modify:"~","delete":"-",other:"?"};' +
+    'var CAT_COLORS = {important:"#ef4444",add:"#22c55e",modify:"#3b82f6","delete":"#f97316",other:"#6b7280"};' +
+    'var CAT_NAMES = {important:' + JSON.stringify(catImportant) + ',add:' + JSON.stringify(catAdd) + ',modify:' + JSON.stringify(catModify) + ',"delete":' + JSON.stringify(catDelete) + ',other:' + JSON.stringify(catOther) + '};' +
     'var currentFilter = "all";' +
+    'var currentSort = "newest";' +
+    'var searchQuery = "";' +
     'var confirmMsg = ' + JSON.stringify(confirmDeleteAll) + ';' +
     'var copiedMsg = ' + JSON.stringify(copiedLabel) + ';' +
     'var totalTpl = ' + JSON.stringify(totalCountTpl) + ';' +
     'var noMemosMsg = ' + JSON.stringify(noMemos) + ';' +
     'function loadAll() { try { var s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : []; } catch(e) { return []; } }' +
     'function saveAll(m) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(m)); } catch(e) {} }' +
-    'function formatTs(iso) { var d = new Date(iso); return d.toLocaleString(undefined, {year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}); }' +
+    'function deleteMemo(id) { var all = loadAll(); var updated = all.filter(function(m) { return m.id !== id; }); saveAll(updated); render(); }' +
+    'function relativeTime(iso) {' +
+      'var now = new Date().getTime();' +
+      'var then = new Date(iso).getTime();' +
+      'var diff = Math.floor((now - then) / 1000);' +
+      'if (diff < 60) return "just now";' +
+      'if (diff < 3600) return Math.floor(diff / 60) + "m ago";' +
+      'if (diff < 86400) return Math.floor(diff / 3600) + "h ago";' +
+      'if (diff < 604800) return Math.floor(diff / 86400) + "d ago";' +
+      'if (diff < 2592000) return Math.floor(diff / 604800) + "w ago";' +
+      'return new Date(iso).toLocaleDateString();' +
+    '}' +
+    'function escapeHtml(text) {' +
+      'var div = document.createElement("div");' +
+      'div.textContent = text;' +
+      'return div.innerHTML;' +
+    '}' +
     'function render() {' +
       'var all = loadAll();' +
-      'var filtered = currentFilter === "all" ? all : all.filter(function(m) { return m.category === currentFilter; });' +
-      'filtered.sort(function(a,b) { return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); });' +
+      'var filtered = all;' +
+      'if (currentFilter !== "all") {' +
+        'filtered = filtered.filter(function(m) { return m.category === currentFilter; });' +
+      '}' +
+      'if (searchQuery) {' +
+        'var q = searchQuery.toLowerCase();' +
+        'filtered = filtered.filter(function(m) {' +
+          'return (m.content && m.content.toLowerCase().indexOf(q) !== -1) || (m.target && m.target.toLowerCase().indexOf(q) !== -1);' +
+        '});' +
+      '}' +
+      'if (currentSort === "newest") {' +
+        'filtered.sort(function(a,b) { return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); });' +
+      '} else if (currentSort === "oldest") {' +
+        'filtered.sort(function(a,b) { return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(); });' +
+      '} else if (currentSort === "page") {' +
+        'filtered.sort(function(a,b) {' +
+          'var pa = a.pageTitle || "";' +
+          'var pb = b.pageTitle || "";' +
+          'if (pa < pb) return -1;' +
+          'if (pa > pb) return 1;' +
+          'return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();' +
+        '});' +
+      '}' +
       'var countEl = document.getElementById("memoPageCount");' +
       'countEl.textContent = totalTpl.replace("{{n}}", String(filtered.length));' +
       'var list = document.getElementById("memoPageList");' +
       'list.innerHTML = "";' +
       'if (filtered.length === 0) { list.innerHTML = "<div class=\\"memo-page-empty\\">" + noMemosMsg + "</div>"; return; }' +
-      'for (var i = 0; i < filtered.length; i++) {' +
-        '(function(memo) {' +
-          'var item = document.createElement("div");' +
-          'item.className = "memo-page-item";' +
-          'item.style.borderLeft = "4px solid " + (memo.color || "#fff9c4");' +
-          'var catIcon = CATEGORIES[memo.category] || "?";' +
-          'item.innerHTML = "<span class=\\"memo-page-item-cat\\">" + catIcon + "</span>" +' +
-            '"<div class=\\"memo-page-item-info\\">" +' +
-              '"<div class=\\"memo-page-item-target\\">" + (memo.target || "(no target)") + "</div>" +' +
-              '"<div class=\\"memo-page-item-content\\">" + ((memo.content || "").length > 100 ? (memo.content || "").slice(0,100) + "..." : (memo.content || "")) + "</div>" +' +
-              '"<div class=\\"memo-page-item-meta\\">" + (memo.pageTitle || "") + " &middot; " + formatTs(memo.createdAt) + "</div>" +' +
-            '"</div>";' +
-          'item.addEventListener("click", function() { if (memo.pageUrl) window.location.href = memo.pageUrl; });' +
-          'list.appendChild(item);' +
-        '})(filtered[i]);' +
+      'if (currentSort === "page") {' +
+        'var byPage = {};' +
+        'for (var i = 0; i < filtered.length; i++) {' +
+          'var m = filtered[i];' +
+          'var pg = m.pageTitle || "(no page)";' +
+          'if (!byPage[pg]) byPage[pg] = [];' +
+          'byPage[pg].push(m);' +
+        '}' +
+        'var pages = Object.keys(byPage);' +
+        'for (var i = 0; i < pages.length; i++) {' +
+          'var pg = pages[i];' +
+          'var groupHeader = document.createElement("div");' +
+          'groupHeader.className = "memo-page-group-header";' +
+          'groupHeader.textContent = pg + " (" + byPage[pg].length + ")";' +
+          'list.appendChild(groupHeader);' +
+          'for (var j = 0; j < byPage[pg].length; j++) {' +
+            'renderMemoItem(list, byPage[pg][j]);' +
+          '}' +
+        '}' +
+      '} else {' +
+        'for (var i = 0; i < filtered.length; i++) {' +
+          'renderMemoItem(list, filtered[i]);' +
+        '}' +
       '}' +
     '}' +
+    'function renderMemoItem(container, memo) {' +
+      'var item = document.createElement("div");' +
+      'item.className = "memo-page-item";' +
+      'item.style.borderLeft = "4px solid " + (memo.color || CAT_COLORS[memo.category] || "#fff9c4");' +
+      'var catName = CAT_NAMES[memo.category] || "Other";' +
+      'var catColor = CAT_COLORS[memo.category] || "#9e9e9e";' +
+      'var truncatedContent = (memo.content || "").length > 200 ? (memo.content || "").slice(0,200) + "..." : (memo.content || "");' +
+      'var html = "<div class=\\"memo-page-item-header\\">" +' +
+        '"<span class=\\"memo-page-item-badge\\" style=\\"background:" + catColor + "\\">" + catName + "</span>" +' +
+        '"<span class=\\"memo-page-item-time\\">" + relativeTime(memo.createdAt) + "</span>" +' +
+        '"<button class=\\"memo-page-item-delete\\" data-id=\\"" + memo.id + "\\" title=\\"Delete\\" onclick=\\"event.stopPropagation();\\"><svg width=\\"14\\" height=\\"14\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\"><line x1=\\"18\\" y1=\\"6\\" x2=\\"6\\" y2=\\"18\\"/><line x1=\\"6\\" y1=\\"6\\" x2=\\"18\\" y2=\\"18\\"/></svg></button>" +' +
+      '"</div>" +' +
+      '"<div class=\\"memo-page-item-content-wrapper\\">" +' +
+        '"<div class=\\"memo-page-item-target\\">" + escapeHtml(memo.target || "(no target)") + "</div>" +' +
+        '"<div class=\\"memo-page-item-content\\">" + escapeHtml(truncatedContent) + "</div>" +' +
+        '"<div class=\\"memo-page-item-meta\\"><svg width=\\"12\\" height=\\"12\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2\\"><path d=\\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\\"/><polyline points=\\"14 2 14 8 20 8\\"/></svg> " + escapeHtml(memo.pageTitle || "") + "</div>" +' +
+      '"</div>";' +
+      'item.innerHTML = html;' +
+      'item.addEventListener("click", function() { if (memo.pageUrl) window.location.href = memo.pageUrl; });' +
+      'var deleteBtn = item.querySelector(".memo-page-item-delete");' +
+      'deleteBtn.addEventListener("click", function(e) { e.stopPropagation(); if (confirm("Delete this memo?")) deleteMemo(memo.id); });' +
+      'container.appendChild(item);' +
+    '}' +
+    // Search
+    'document.getElementById("memoPageSearch").addEventListener("input", function(e) {' +
+      'searchQuery = e.target.value;' +
+      'render();' +
+    '});' +
     // Filter buttons
     'var filterBtns = document.querySelectorAll(".memo-page-filter-btn");' +
     'filterBtns.forEach(function(btn) {' +
@@ -340,6 +484,16 @@ export function buildMemoPageContent(s: any): string {
         'filterBtns.forEach(function(b) { b.classList.remove("active"); });' +
         'btn.classList.add("active");' +
         'currentFilter = btn.getAttribute("data-filter");' +
+        'render();' +
+      '});' +
+    '});' +
+    // Sort buttons
+    'var sortBtns = document.querySelectorAll(".memo-page-sort-btn");' +
+    'sortBtns.forEach(function(btn) {' +
+      'btn.addEventListener("click", function() {' +
+        'sortBtns.forEach(function(b) { b.classList.remove("active"); });' +
+        'btn.classList.add("active");' +
+        'currentSort = btn.getAttribute("data-sort");' +
         'render();' +
       '});' +
     '});' +
@@ -392,7 +546,11 @@ export function buildMemoPageContent(s: any): string {
 }
 
 export function decorateMermaidBlocks(html: string): string {
-  return html.replace(/<pre\b([^>]*)>([\s\S]*?)<\/pre>/gi, (match, attrs, inner) => {
+  // Collect mermaid blocks into placeholders to avoid double-matching
+  const blocks: string[] = [];
+
+  // 1. Handle <pre> blocks containing "mermaid" (legacy / Shiki-processed)
+  let result = html.replace(/<pre\b([^>]*)>([\s\S]*?)<\/pre>/gi, (match, attrs, inner) => {
     const block = `${attrs} ${inner}`.toLowerCase();
     if (!block.includes('mermaid')) return match;
 
@@ -406,10 +564,30 @@ export function decorateMermaidBlocks(html: string): string {
       .trim();
 
     if (decodedCode.length === 0) return match;
-
-    const encoded = Buffer.from(decodedCode, 'utf-8').toString('base64');
-    return `<div class="mermaid-wrapper"><div class="mermaid-toolbar"><button class="mermaid-copy-btn" data-source="${encoded}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><button class="mermaid-expand-btn" data-source="${encoded}" title="Expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button></div><div class="mermaid">${decodedCode}</div></div>`;
+    const idx = blocks.length;
+    blocks.push(decodedCode);
+    return `__MERMAID_PH_${idx}__`;
   });
+
+  // 2. Handle raw <div class="mermaid"> blocks (from SSG preserveMermaidBlocks)
+  result = result.replace(/<div class="mermaid">\n?([\s\S]*?)\n?<\/div>/gi, (match, code) => {
+    const trimmed = code.trim();
+    if (trimmed.length === 0) return match;
+    const idx = blocks.length;
+    blocks.push(trimmed);
+    return `__MERMAID_PH_${idx}__`;
+  });
+
+  // 3. Replace placeholders with decorated mermaid wrappers
+  for (let i = 0; i < blocks.length; i++) {
+    const code = blocks[i];
+    const encoded = Buffer.from(code, 'utf-8').toString('base64');
+    const safeCode = escapeHtml(code);
+    const wrapped = `<div class="mermaid-wrapper"><div class="mermaid-toolbar"><button class="mermaid-copy-btn" data-source="${encoded}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><button class="mermaid-expand-btn" data-source="${encoded}" title="Expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button></div><div class="mermaid">${safeCode}</div></div>`;
+    result = result.replace(`__MERMAID_PH_${i}__`, wrapped);
+  }
+
+  return result;
 }
 
 export function sanitizeHtmlContent(html: string): string {
@@ -423,12 +601,13 @@ export function sanitizeHtmlContent(html: string): string {
           'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
           'table', 'thead', 'tbody', 'tr', 'th', 'td',
           'div', 'span', 'img',
+          'details', 'summary',
           'button', 'svg', 'path', 'rect', 'line', 'polyline', 'circle', 'ellipse',
         ],
         allowedAttributes: {
           a: ['href', 'name', 'target', 'rel'],
           img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
-          '*': ['id', 'class', 'title', 'aria-label', 'data-source', 'style'],
+          '*': ['id', 'class', 'title', 'aria-label', 'data-source', 'style', 'open'],
         },
         allowedSchemes: ['http', 'https', 'mailto', 'tel'],
         allowedSchemesAppliedToAttributes: ['href', 'src'],

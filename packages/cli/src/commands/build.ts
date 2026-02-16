@@ -169,6 +169,16 @@ async function buildStaticSite(docsDir: string, outDir: string, config: any): Pr
     writeFileSync(outFile, htmlPage, 'utf-8');
   }
 
+  // Generate search index for client-side search
+  const searchIndex = pages.map(p => ({
+    slug: p.slug,
+    title: p.title,
+    // Extract plain text from HTML for search (strip tags)
+    text: p.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000),
+    headings: extractTocHeadings(addHeadingIds(p.html)).map(h => h.text),
+  }));
+  writeFileSync(join(distPath, 'search-index.json'), JSON.stringify(searchIndex), 'utf-8');
+
   // Generate index.html that redirects to the index page or first page
   const indexPage = pages.find(p => p.slug === 'index') || pages[0];
   if (indexPage && indexPage.slug !== 'index') {
@@ -206,7 +216,7 @@ function generateHtmlPage(opts: {
   const isMemo = opts.currentSlug === 'memo';
   const isSpecialPage = isIndex || isMemo;
   const tocHtml = isSpecialPage ? '' : buildTocHtml(opts.tocHeadings, opts.s);
-  const leftSidebarHtml = isSpecialPage ? '' : buildLeftSidebar(opts.sidebarStructure, opts.currentSlug, opts.basePrefix, opts.s);
+  const leftSidebarHtml = isSpecialPage ? '' : buildLeftSidebar(opts.sidebarStructure, opts.currentSlug, opts.basePrefix, opts.s, opts.tocHeadings);
   const breadcrumbHtml = isSpecialPage ? '' : buildBreadcrumb(opts.sidebarStructure, opts.currentSlug, opts.basePrefix, opts.s);
 
   let mainContent: string;
@@ -254,6 +264,17 @@ function generateHtmlPage(opts: {
           ${navHtml}
         </ul>
       </nav>
+      <div class="header-search">
+        <div class="search-wrapper" id="searchWrapper">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" class="search-input" id="globalSearchInput" placeholder="${escapeHtml(opts.s.search?.placeholder || 'Search docs...')}" autocomplete="off">
+          <kbd class="search-shortcut">/</kbd>
+          <div class="search-results" id="searchResults" style="display:none">
+            <div class="search-results-list" id="searchResultsList"></div>
+            <div class="search-empty" id="searchEmpty" style="display:none">${escapeHtml(opts.s.search?.noResults || 'No results found')}</div>
+          </div>
+        </div>
+      </div>
       <div class="header-actions">
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
           <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -275,7 +296,7 @@ function generateHtmlPage(opts: {
 
   <!-- Memo: sticky notes container -->
   <div id="memoStickyContainer"></div>
-
+${isMemo ? '' : `
   <!-- Memo: right-click context menu -->
   <div class="codedocs-context-menu" id="memoContextMenu" style="display:none">
     <div class="codedocs-context-menu-item" id="memoContextAdd">${escapeHtml(opts.s.memo.contextAddMemo)}</div>
@@ -305,7 +326,6 @@ function generateHtmlPage(opts: {
         <button class="codedocs-memo-icon-btn" id="memoExportBtn" title="${escapeHtml(opts.s.memo.exportAll)}">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
-        <input type="file" id="memoFileInput" accept=".json" style="display:none" aria-label="${escapeHtml(opts.s.memo.importFile)}">
       </div>
       <button class="codedocs-memo-close" id="memoCloseBtn" aria-label="Close">&times;</button>
     </div>
@@ -314,6 +334,7 @@ function generateHtmlPage(opts: {
     </div>
     <div class="codedocs-memo-list" id="memoList"></div>
   </div>
+`}
 
   ${renderRuntimeScripts(opts)}
 

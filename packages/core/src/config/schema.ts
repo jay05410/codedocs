@@ -38,7 +38,7 @@ const aiConfigSchema = z.object({
 const docsSectionSchema = z.object({
   id: z.string(),
   label: z.string(),
-  type: z.enum(['auto', 'endpoints', 'entities', 'architecture', 'changelog', 'custom']),
+  type: z.enum(['auto', 'endpoints', 'entities', 'components', 'services', 'architecture', 'changelog', 'custom']),
   dir: z.string().optional(),
 });
 
