@@ -91,7 +91,7 @@ export const generateCommand = new Command('generate')
       }
 
       // Create markdown generator config (use effective sections for page generation)
-      const pageGenSections = buildEffectiveSections(config.docs?.sections || [], analysisData);
+      const pageGenSections = buildEffectiveSections(config.docs?.sections || [], analysisData, config.docs?.locale as Locale);
       const generatorConfig = {
         outputDir: outputDir,
         locale: config.docs.locale,
@@ -211,7 +211,7 @@ export const generateCommand = new Command('generate')
       // Generate _sidebar.json with domain grouping (AI or heuristic)
       spinner.text = 'Building sidebar...';
       const sidebarItems = await buildDomainSidebar(
-        aiProvider, aiFeatures, mergedAnalysis, allPages, config, analysisData, options
+        aiProvider, aiFeatures, mergedAnalysis, allPages, config, analysisData, options, config.docs?.locale as Locale
       );
       writeFileSync(join(outputPath, '_sidebar.json'), JSON.stringify(sidebarItems, null, 2), 'utf-8');
 
@@ -429,29 +429,30 @@ function formatBytes(bytes: number): string {
  * Build effective sections by auto-detecting from analysis data
  * when the config only has a generic 'auto' section.
  */
-function buildEffectiveSections(configSections: SectionConfig[], analysisData: any): SectionConfig[] {
+function buildEffectiveSections(configSections: SectionConfig[], analysisData: any, locale: Locale): SectionConfig[] {
   // If user explicitly configured multiple sections, respect that
   const hasExplicitSections = configSections.length > 1
     || (configSections.length === 1 && configSections[0].type !== 'auto');
   if (hasExplicitSections) return configSections;
 
   // Auto-detect sections from analysis results
+  const s = getStrings(locale);
   const sections: SectionConfig[] = [];
   const results = analysisData.results || [];
   const summary = analysisData.summary || {};
 
   // Overview is generated unconditionally by MarkdownGenerator.generate().
   // Use 'custom' (no dir) so the switch case produces no pages, avoiding duplication.
-  sections.push({ id: 'overview', label: 'Overview', type: 'custom' });
+  sections.push({ id: 'overview', label: s.common.overview, type: 'custom' });
 
   // Add endpoints section if any endpoints found
   if (summary.endpoints > 0 || results.some((r: any) => r.endpoints?.length > 0)) {
-    sections.push({ id: 'api', label: 'API', type: 'endpoints' });
+    sections.push({ id: 'api', label: s.common.api, type: 'endpoints' });
   }
 
   // Add entities section if any entities found
   if (summary.entities > 0 || results.some((r: any) => r.entities?.length > 0)) {
-    sections.push({ id: 'entities', label: 'Data Models', type: 'entities' });
+    sections.push({ id: 'entities', label: s.common.dataModels, type: 'entities' });
   }
 
   // Add components section if UI components found (React/Vue/Svelte types)
@@ -464,19 +465,19 @@ function buildEffectiveSections(configSections: SectionConfig[], analysisData: a
     )
   );
   if (hasComponents) {
-    sections.push({ id: 'components', label: 'Components', type: 'components' });
+    sections.push({ id: 'components', label: s.overview.components, type: 'components' });
   }
 
   // Add services/hooks section if any found
   if (summary.services > 0 || results.some((r: any) => r.services?.length > 0)) {
-    sections.push({ id: 'hooks', label: 'Hooks & Services', type: 'services' });
+    sections.push({ id: 'hooks', label: s.overview.hooksAndServices, type: 'services' });
   }
 
   // Always add architecture (shows dependency graph)
-  sections.push({ id: 'architecture', label: 'Architecture', type: 'architecture' });
+  sections.push({ id: 'architecture', label: s.common.architecture, type: 'architecture' });
 
   // Always add changelog
-  sections.push({ id: 'changelog', label: 'Changelog', type: 'changelog' });
+  sections.push({ id: 'changelog', label: s.changelog.title, type: 'changelog' });
 
   return sections;
 }
@@ -748,6 +749,7 @@ async function buildDomainSidebar(
   config: any,
   analysisData: any,
   options: { verbose?: boolean },
+  locale: Locale,
 ): Promise<SidebarItem[]> {
   const endpoints = analysis.endpoints || [];
   const entities = analysis.entities || [];
@@ -805,11 +807,11 @@ async function buildDomainSidebar(
   }
 
   if (useDomainSidebar) {
-    return buildSidebarFromGroups(groups, pages, analysis);
+    return buildSidebarFromGroups(groups, pages, analysis, locale);
   }
 
   // Final fallback: SidebarGenerator with static sections
-  const effectiveSections = buildEffectiveSections(configSections, analysisData);
+  const effectiveSections = buildEffectiveSections(configSections, analysisData, locale);
   const sidebarGenerator = new SidebarGenerator();
   return sidebarGenerator.generate(pages, effectiveSections);
 }
@@ -821,6 +823,7 @@ function buildSidebarFromGroups(
   groups: DomainGroup[],
   pages: GeneratedPage[],
   analysis: any,
+  locale: Locale,
 ): SidebarItem[] {
   const sidebar: SidebarItem[] = [];
   const endpoints = analysis.endpoints || [];
@@ -914,7 +917,8 @@ function buildSidebarFromGroups(
     usedPageIds.add(pageId);
   }
   if (ungroupedItems.length > 0) {
-    sidebar.push({ type: 'category', label: 'Other', items: ungroupedItems, position: 500 });
+    const s = getStrings(locale);
+    sidebar.push({ type: 'category', label: s.memo.other, items: ungroupedItems, position: 500 });
   }
 
   // Architecture

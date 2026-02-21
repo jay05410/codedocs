@@ -50,7 +50,7 @@ export function TOC() {
 
   return (
     <aside className="codedocs-toc">
-      <div className="codedocs-toc-title">On this page</div>
+      <div className="codedocs-toc-title">{strings.toc.onThisPage}</div>
       <ul className="codedocs-toc-list">
         {headings.map((heading) => (
           <li 

@@ -42,3 +42,6 @@ docs-output/
 
 # npm-cache
 .npm-cache
+
+# Claude
+.claude

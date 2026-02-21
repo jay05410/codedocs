@@ -110,6 +110,239 @@ export function renderRuntimeScripts(opts: RuntimeScriptOptions): string {
       });
     })();
 
+    // Left sidebar SPA navigation
+    (function() {
+      var leftSidebar = document.querySelector('.left-sidebar');
+      if (!leftSidebar) return;
+
+      leftSidebar.addEventListener('click', function(e) {
+        var link = e.target.closest('a');
+        if (!link) return;
+        var href = link.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('//')) return;
+
+        e.preventDefault();
+        loadPage(href);
+      });
+
+      function loadPage(url) {
+        fetch(url)
+          .then(function(res) { return res.text(); })
+          .then(function(html) {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(html, 'text/html');
+
+            // Extract new content
+            var newContent = doc.querySelector('.content');
+            if (!newContent) return;
+
+            // Replace main content
+            var currentContent = document.querySelector('.content');
+            if (currentContent) {
+              currentContent.innerHTML = newContent.innerHTML;
+            }
+
+            // Update active state in left sidebar
+            var links = leftSidebar.querySelectorAll('.left-sidebar-item');
+            links.forEach(function(item) {
+              item.classList.remove('active');
+              var a = item.querySelector('a');
+              if (a && a.getAttribute('href') === url) {
+                item.classList.add('active');
+              }
+            });
+
+            // Update top nav active state
+            var newTopNav = doc.querySelector('.top-nav');
+            var currentTopNav = document.querySelector('.top-nav');
+            if (newTopNav && currentTopNav) {
+              currentTopNav.innerHTML = newTopNav.innerHTML;
+            }
+
+            // Rebuild TOC from new content
+            rebuildToc();
+
+            // Update breadcrumb
+            var newBreadcrumb = doc.querySelector('.breadcrumb');
+            var currentBreadcrumb = document.querySelector('.breadcrumb');
+            if (newBreadcrumb && currentBreadcrumb) {
+              currentBreadcrumb.outerHTML = newBreadcrumb.outerHTML;
+            } else if (newBreadcrumb && !currentBreadcrumb) {
+              var article = document.querySelector('.content article');
+              if (article) article.insertAdjacentHTML('beforebegin', newBreadcrumb.outerHTML);
+            }
+
+            // Update URL
+            history.pushState({ spaNav: true }, '', url);
+
+            // Update page title
+            var newTitle = doc.querySelector('title');
+            if (newTitle) document.title = newTitle.textContent;
+
+            // Scroll to top of content
+            var main = document.querySelector('.content');
+            if (main) main.scrollTop = 0;
+            window.scrollTo(0, 0);
+
+            // Re-init mermaid for new content
+            if (window.mermaid) {
+              var mermaidDivs = document.querySelectorAll('.content .mermaid:not([data-processed])');
+              mermaidDivs.forEach(function(div) {
+                try { window.mermaid.run({ nodes: [div] }); } catch(e) {}
+              });
+            }
+
+            // Re-init runtime scripts for new content
+            reinitContentScripts();
+          })
+          .catch(function(err) {
+            // Fallback: do regular navigation
+            window.location.href = url;
+          });
+      }
+
+      function rebuildToc() {
+        var tocSidebar = document.querySelector('.toc-sidebar');
+        if (!tocSidebar) return;
+
+        var content = document.querySelector('.content article');
+        if (!content) return;
+
+        var headings = content.querySelectorAll('h2[id], h3[id]');
+        if (headings.length === 0) {
+          tocSidebar.style.display = 'none';
+          return;
+        }
+        tocSidebar.style.display = '';
+
+        // Get the TOC title from existing element or use default
+        var tocTitleEl = tocSidebar.querySelector('.toc-title');
+        var tocTitle = tocTitleEl ? tocTitleEl.textContent : 'On this page';
+
+        var items = '';
+        headings.forEach(function(h) {
+          var level = parseInt(h.tagName.charAt(1));
+          items += '<li class="toc-item toc-h' + level + '"><a href="#' + h.id + '">' + h.textContent + '</a></li>';
+        });
+
+        tocSidebar.innerHTML = '<div class="toc-container"><div class="toc-title">' + tocTitle + '</div><ul class="toc-list">' + items + '</ul></div>';
+
+        // Re-attach TOC scroll spy
+        initTocScrollSpy();
+      }
+
+      function initTocScrollSpy() {
+        var tocLinks = document.querySelectorAll('.toc-item a');
+        var headings = [];
+        tocLinks.forEach(function(link) {
+          var id = link.getAttribute('href');
+          if (!id) return;
+          var el = document.getElementById(id.slice(1));
+          if (el) headings.push({ el: el, link: link });
+        });
+        if (headings.length === 0) return;
+
+        function onScroll() {
+          var scrollTop = window.scrollY + 100;
+          var active = null;
+          for (var i = headings.length - 1; i >= 0; i--) {
+            if (headings[i].el.offsetTop <= scrollTop) {
+              active = headings[i];
+              break;
+            }
+          }
+          tocLinks.forEach(function(l) { l.parentElement.classList.remove('active'); });
+          if (active) active.link.parentElement.classList.add('active');
+        }
+
+        // Remove old scroll listener, add new one
+        window.removeEventListener('scroll', window._tocScrollHandler);
+        window._tocScrollHandler = onScroll;
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+      }
+
+      function reinitContentScripts() {
+        // Re-attach accordion toggle handlers
+        document.querySelectorAll('.content details.component-accordion, .content details.service-accordion').forEach(function(d) {
+          d.addEventListener('toggle', function() {
+            if (d.open && d.id) {
+              history.replaceState(null, '', '#' + d.id);
+            }
+          });
+        });
+
+        // Re-attach filter inputs
+        var filterInputs = document.querySelectorAll('.content .codedocs-filter-input');
+        filterInputs.forEach(function(input) {
+          input.addEventListener('input', function() {
+            var query = input.value.toLowerCase();
+            var container = input.closest('article') || document;
+            var accordions = container.querySelectorAll('details.component-accordion, details.service-accordion');
+            accordions.forEach(function(acc) {
+              var name = (acc.getAttribute('data-component-name') || acc.querySelector('summary')?.textContent || '').toLowerCase();
+              acc.style.display = name.includes(query) ? '' : 'none';
+            });
+          });
+        });
+
+        // Re-attach expand/collapse buttons
+        document.querySelectorAll('.content .codedocs-expand-all-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var container = btn.closest('article') || document;
+            container.querySelectorAll('details.component-accordion, details.service-accordion').forEach(function(d) {
+              if (d.style.display !== 'none') d.open = true;
+            });
+          });
+        });
+        document.querySelectorAll('.content .codedocs-collapse-all-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var container = btn.closest('article') || document;
+            container.querySelectorAll('details.component-accordion, details.service-accordion').forEach(function(d) {
+              d.open = false;
+            });
+          });
+        });
+
+        // Re-init mermaid copy/expand buttons
+        document.querySelectorAll('.content .mermaid-copy-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var src = btn.getAttribute('data-source');
+            if (src) {
+              var code = atob(src);
+              navigator.clipboard.writeText(code);
+            }
+          });
+        });
+        document.querySelectorAll('.content .mermaid-expand-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var wrapper = btn.closest('.mermaid-wrapper');
+            if (wrapper) {
+              var container = wrapper.querySelector('.mermaid');
+              if (container) container.classList.toggle('zoomed');
+            }
+          });
+        });
+      }
+
+      // Handle browser back/forward
+      window.addEventListener('popstate', function(e) {
+        if (e.state && e.state.spaNav) {
+          loadPage(window.location.href);
+        } else {
+          // For non-SPA history entries, do full reload
+          window.location.reload();
+        }
+      });
+
+      // Store initial state
+      history.replaceState({ spaNav: true }, '', window.location.href);
+
+      // Initialize TOC scroll spy tracking
+      window._tocScrollHandler = null;
+      initTocScrollSpy();
+    })();
+
     // Global search
     (function() {
       var searchInput = document.getElementById('globalSearchInput');

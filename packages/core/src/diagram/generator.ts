@@ -215,7 +215,7 @@ export class DiagramGenerator {
     // Nodes
     for (const svc of selected) {
       const methodCount = svc.methods.length;
-      lines.push(`    ${sanitizeId(svc.name)}["${svc.name}<br/><small>${methodCount} methods</small>"]`);
+      lines.push(`    ${sanitizeId(svc.name)}["${svc.name}<br/>${methodCount} methods"]`);
     }
 
     // Edges from dependencies
@@ -282,7 +282,7 @@ export class DiagramGenerator {
       const maxSvc = options.maxNodes || 15;
       for (const svc of this.analysis.services.slice(0, maxSvc)) {
         const id = sanitizeId(svc.name);
-        lines.push(`        ${id}["${svc.name}<br/><small>${svc.methods.length} methods</small>"]`);
+        lines.push(`        ${id}["${svc.name}<br/>${svc.methods.length} methods"]`);
         nodeCount++;
       }
       lines.push('    end');

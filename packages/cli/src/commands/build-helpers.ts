@@ -290,16 +290,16 @@ export function buildDashboardContent(sidebarStructure: any[], basePrefix: strin
   if (stats) {
     statsHtml = '<div class="dashboard-stats">';
     if (stats.endpoints !== undefined) {
-      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.endpoints + '</span><span class="dashboard-stat-label">Endpoints</span></div>';
+      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.endpoints + '</span><span class="dashboard-stat-label">' + escapeHtml(s.overview?.endpoints || 'Endpoints') + '</span></div>';
     }
     if (stats.entities !== undefined) {
-      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.entities + '</span><span class="dashboard-stat-label">Entities</span></div>';
+      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.entities + '</span><span class="dashboard-stat-label">' + escapeHtml(s.overview?.entities || 'Entities') + '</span></div>';
     }
     if (stats.components !== undefined) {
-      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.components + '</span><span class="dashboard-stat-label">Components</span></div>';
+      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.components + '</span><span class="dashboard-stat-label">' + escapeHtml(s.overview?.components || 'Components') + '</span></div>';
     }
     if (stats.services !== undefined) {
-      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.services + '</span><span class="dashboard-stat-label">Services</span></div>';
+      statsHtml += '<div class="dashboard-stat"><span class="dashboard-stat-value">' + stats.services + '</span><span class="dashboard-stat-label">' + escapeHtml(s.overview?.services || 'Services') + '</span></div>';
     }
     statsHtml += '</div>';
   }
@@ -582,8 +582,7 @@ export function decorateMermaidBlocks(html: string): string {
   for (let i = 0; i < blocks.length; i++) {
     const code = blocks[i];
     const encoded = Buffer.from(code, 'utf-8').toString('base64');
-    const safeCode = escapeHtml(code);
-    const wrapped = `<div class="mermaid-wrapper"><div class="mermaid-toolbar"><button class="mermaid-copy-btn" data-source="${encoded}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><button class="mermaid-expand-btn" data-source="${encoded}" title="Expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button></div><div class="mermaid">${safeCode}</div></div>`;
+    const wrapped = `<div class="mermaid-wrapper"><div class="mermaid-toolbar"><button class="mermaid-copy-btn" data-source="${encoded}" title="Copy code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><button class="mermaid-expand-btn" data-source="${encoded}" title="Expand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button></div><div class="mermaid">${code}</div></div>`;
     result = result.replace(`__MERMAID_PH_${i}__`, wrapped);
   }
 
